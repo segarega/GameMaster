@@ -98,8 +98,8 @@ GameMaster can use two different LLM calls:
 
 ### Requirements
 
-- Python **3.10+**
-- Python added to your system `PATH`
+- Python **3.10+ (IF not using .exe from release)**
+- Python added to your system `PATH` (IF not using .exe from release)
 - AI Influence installed for Mount & Blade II: Bannerlord
 
 ### Option 1: Download the `.exe` release
