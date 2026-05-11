@@ -1,0 +1,261 @@
+{
+  "server": {
+    "host": "localhost",
+    "port": 5100
+  },
+  "llm": {
+    "api_url": "https://nano-gpt.com/api/subscription/v1/chat/completions",
+    "api_key": "",
+    "models": {
+      "dialogue": "moonshotai/kimi-k2.5",
+      "diplomacy": "zai-org/glm-5",
+      "events": "zai-org/glm-5"
+    },
+    "site_url": "",
+    "app_title": "GameMaster"
+  },
+  "request_type_detection": {
+    "dialogue": [
+      "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown."
+    ],
+    "events": [
+      "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
+    ],
+    "diplomacy": [
+      "### CRITICAL REMINDER: You Are a Living Ruler ###"
+    ]
+  },
+  "filtering": {
+    "mode": "selector"
+  },
+  "gm": {
+    "dynamic_filter_enabled": true,
+    "max_event_history": 50,
+    "dialogue_history_size": 100,
+    "fuzzy_match_threshold": 0.88,
+    "max_people_present": 10,
+    "max_nearby_settlements": 7,
+    "max_nearby_parties": 5,
+    "max_inventory_lines": 5,
+    "max_event_dialogue_messages": 15,
+    "max_event_dialogue_settlements": 15
+  },
+  "static_gm_index": {
+    "enabled": true,
+    "ai_influence_folder": "C:/Games/Steam/steamapps/common/Mount & Blade II Bannerlord/Modules/AIInfluence",
+    "files": [
+      "world.txt",
+      "actionrules.txt",
+      "battlecombatrules.txt",
+      "eventsanalyzerrules.txt",
+      "eventsgeneratorrules.txt",
+      "kingdomstatementrules.txt"
+    ],
+    "db_path": "cache/static_gm_index.sqlite3",
+    "selector_payload": "summary",
+    "summary_enabled": true,
+    "summary_api_url": "https://nano-gpt.com/api/subscription/v1/chat/completions",
+    "summary_api_key": "",
+    "summary_model": "deepseek/deepseek-v4-flash",
+    "summary_temperature": 0.1,
+    "summary_max_tokens": 220,
+    "summary_timeout_seconds": 120.0,
+    "summary_max_chars": 6000,
+    "summary_instruction": "You are an expert data compressor. \n\nYour task is to condense detailed information into ultra-concise, telegraphic summaries with an intent to reduce input-token usage for keyword database retrieval.\n\nRules for Summarization:\n- No filler: Remove articles (a, an, the), flowery language, and full sentences.\n- Telegraphic style: Use slashes (/), semicolons (;), and commas to string together concepts tightly.\n- Prioritize the unique: Keep highly specific details and drop generic lore.\n- Use keywords, not sentences\n- Format: [Name]: [Core Identity]. [Key details/customs/taboos]."
+  },
+  "character_memory": {
+    "enabled": true,
+    "campaign_dir": "C:/Games/Steam/steamapps/common/Mount & Blade II Bannerlord/Modules/AIInfluence/save_data/HWdctsQLlkfZ",
+    "api_url": "https://nano-gpt.com/api/subscription/v1/chat/completions",
+    "api_key": "",
+    "model": "deepseek/deepseek-v4-flash",
+    "temperature": 0.1,
+    "max_tokens": 700,
+    "timeout_seconds": 180.0,
+    "preserve_last_lines": 10,
+    "auto_enabled": true,
+    "auto_trigger_raw_lines": 16,
+    "auto_scan_interval_seconds": 30.0,
+    "auto_debounce_seconds": 8.0,
+    "max_memory_entries": 5,
+    "summary_prompt": "You are compressing a character's conversation history for long-term game memory. Summarize only the provided conversation lines. Preserve concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, allegiances, emotional shifts, debts, bargains, and information the character learned from or about the player. Preserve the character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation. Do not invent events, motives, names, titles, or relationships. Do not contradict existing memory. Do not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\nWrite 1-2 concise sentences in past tense. The sentences must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON.",
+    "profile_update_prompt": "You are conservatively updating a game character profile using conversation history. You may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay. Examples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player. Do not rewrite the character into a different person. Preserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change. Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence. Prefer small additive edits over broad rewrites. Keep the existing structure and style where possible. If no meaningful durable change is needed, return changed=false. Return strict JSON only with this shape: {\"changed\": true or false, \"new_personality\": string or null, \"new_backstory\": string or null, \"reason\": string, \"confidence\": \"low\" | \"medium\" | \"high\"}."
+  },
+  "prompt_drop_rules": [
+    {
+      "name": "Critical Reminder Drop",
+      "request_types": [
+        "dialogue"
+      ],
+      "drop_beginning": "### CRITICAL REMINDER: You Are a Living Person ###",
+      "drop_end": "Your personality, emotions, and human experience should color every word you say.",
+      "delete_drop_beginning_marker": true,
+      "delete_drop_end_marker": true
+    },
+    {
+      "name": "Internal Thoughts Drop",
+      "request_types": [
+        "dialogue"
+      ],
+      "drop_beginning": "### CRITICAL: Internal Thought Process (REQUIRED BEFORE RESPONDING) ###",
+      "drop_end": "Player's custom rules that OVERRIDE all other instructions:",
+      "delete_drop_beginning_marker": true,
+      "delete_drop_end_marker": true
+    },
+    {
+      "name": "Drop STEPS",
+      "request_types": [
+        "dialogue"
+      ],
+      "drop_beginning": "**STEP 0: VERIFY FACTS (MANDATORY)**",
+      "drop_end": "Response = thoughts + facts. Override Rules = ABSOLUTE PRIORITY.",
+      "delete_drop_beginning_marker": true,
+      "delete_drop_end_marker": true
+    },
+    {
+      "name": "Internal thoughts continuation",
+      "request_types": [
+        "dialogue"
+      ],
+      "drop_beginning": "**REQUIRED fields (always include):**",
+      "drop_end": "The player will NEVER see this - be honest and introspective.",
+      "delete_drop_beginning_marker": true,
+      "delete_drop_end_marker": true
+    },
+    {
+      "name": "Remove double eventsanalyzer.txt rules from Events",
+      "request_types": [
+        "events"
+      ],
+      "drop_beginning": "**PRIVATE reasoning process for logical, consistent, and engaging events that fit the world state.**",
+      "drop_end": "**STEP 0: VERIFY FACTS (MANDATORY)**",
+      "delete_drop_beginning_marker": true,
+      "delete_drop_end_marker": false
+    }
+  ],
+  "prompt_replace_rules": [
+    {
+      "name": "Replace Example Structure for internal thoughts for dialogue",
+      "request_types": [
+        "dialogue"
+      ],
+      "replace_beginning": "{\"internal_thoughts\": \"...\"",
+      "replace_end": "\"response\":",
+      "replacement_text": "{\"response\":",
+      "delete_replace_beginning_marker": true,
+      "delete_replace_end_marker": true
+    },
+    {
+      "name": "Replace intimate behavior for dialogue",
+      "request_types": [
+        "dialogue"
+      ],
+      "replace_beginning": "Intimate interactions: If the player suggests or requests intimate/romantic physical interaction",
+      "replace_end": "This is a roleplay interaction that may result in pregnancy",
+      "replacement_text": "Intimate interactions: If the player suggests or requests intimate/romantic physical interaction (e.g., \"let's make love\", \"spend the night together\", \"be intimate\"), and you are romantically interested (Real Attraction >= 60), you can agree by setting 'decision'='intimate. This is a roleplay interaction that may result in pregnancy so use ONLY ONCE per intimate scene!",
+      "delete_replace_beginning_marker": true,
+      "delete_replace_end_marker": true
+    }
+  ],
+  "llm_logging": {
+    "enabled": true,
+    "path": "logs/llm-log.txt",
+    "pretty_json": true
+  },
+  "selector": {
+    "enabled": true,
+    "api_url": "https://nano-gpt.com/api/subscription/v1/chat/completions",
+    "api_key": "",
+    "model": "deepseek/deepseek-v4-flash",
+    "temperature": 0.0,
+    "max_tokens": 32000,
+    "timeout_seconds": 120.0,
+    "instruction": "You are an AI memory-filtering module for a roleplaying game. Your sole purpose is to select relevant lore and knowledge entries so an NPC can accurately respond to a Player.\n\nYou will receive an input containing:\n1. CONTEXT EXTRACTS: The NPC's identity and background.\n2. Conversation History: The recent dialogue between the Player and the NPC.\n3. CANDIDATE INDEXED ENTRIES: A list of knowledge sections, each with an 'id', 'title', and 'Summary'.\n\nInstructions:\n1. Analyze the Player's most recent message(s) in the Conversation History.\n2. Read the Summary of each candidate entry.\n3. Determine if the Summary contains information the NPC realistically needs to know to formulate a coherent, contextually accurate reply to the Player.\n4. Extract the exact string from the `id` attribute (e.g., \"s001\", \"block_1\") of any relevant <SECTION> or <BLOCK>. \n\nOutput Formatting Rules (CRITICAL):\nYou must output strictly valid JSON and nothing else. \n- DO NOT wrap the output in markdown code blocks (e.g., no ```json or ```).\n- DO NOT include any conversational text, reasoning, greetings, or explanations.\n- DO NOT output anything outside of the JSON object.\n\nYour output must exactly match this schema:\n{\"blocks\":[{\"block_id\":\"block_1\",\"keep_ids\":[\"id1\",\"id2\"]}]}",
+    "log_enabled": true,
+    "log_path": "logs/selector-log.txt",
+    "pretty_json": true,
+    "context_rules": [
+      {
+        "name": "Character Briefing (CURRENT DATA)",
+        "request_types": [
+          "dialogue"
+        ],
+        "beginning": "### Character Briefing (CURRENT DATA) ###",
+        "end": "**Description:**",
+        "include_beginning_marker": false,
+        "include_end_marker": false
+      },
+      {
+        "name": "### Conversation History ###",
+        "request_types": [
+          "dialogue"
+        ],
+        "beginning": "### Conversation History ###",
+        "end": "Last Interaction:",
+        "include_beginning_marker": false,
+        "include_end_marker": false
+      }
+    ]
+  },
+  "request_parameters": {
+    "dialogue": {
+      "temperature": {
+        "enabled": true,
+        "value": 0.8
+      },
+      "top_p": {
+        "enabled": true,
+        "value": 0.95
+      },
+      "top_k": {
+        "enabled": false,
+        "value": 40
+      }
+    },
+    "diplomacy": {
+      "temperature": {
+        "enabled": false,
+        "value": 1.0
+      },
+      "top_p": {
+        "enabled": false,
+        "value": 1.0
+      },
+      "top_k": {
+        "enabled": false,
+        "value": 40
+      }
+    },
+    "events": {
+      "temperature": {
+        "enabled": false,
+        "value": 1.0
+      },
+      "top_p": {
+        "enabled": false,
+        "value": 1.0
+      },
+      "top_k": {
+        "enabled": false,
+        "value": 40
+      }
+    }
+  },
+  "system_prompts": {
+    "dialogue": {
+      "pre_history": "",
+      "post_history": ""
+    },
+    "diplomacy": {
+      "pre_history": "",
+      "post_history": ""
+    },
+    "events": {
+      "pre_history": "",
+      "post_history": ""
+    }
+  },
+  "gui": {
+    "log_viewer_enabled": true
+  }
+}

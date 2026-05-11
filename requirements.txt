@@ -1,0 +1,12 @@
+# GameMaster Dependencies
+
+# FastAPI server
+fastapi>=0.109.0
+uvicorn>=0.27.0
+httpx>=0.26.0
+pydantic>=2.5.0
+
+# Selector/static-GM-index runtime
+configparser>=6.0.0
+PyQt6>=6.6
+pyinstaller>=6.0
