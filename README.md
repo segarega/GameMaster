@@ -239,7 +239,6 @@ They are also...
 ## Westerlands are xyz
 They are also...
 
-[END GM]
 ```
 
 In this example:
