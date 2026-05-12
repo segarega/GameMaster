@@ -100,6 +100,31 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
     ]
 
 
+DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS: Dict[str, bool] = {
+    "character_briefing": True,
+    "player_current_data": True,
+    "people_present": True,
+    "nearby_settlements": True,
+    "nearby_parties": True,
+    "mentioned_settlements": True,
+    "mentioned_characters": True,
+    "mentioned_parties": True,
+    "appearance_equipment": True,
+    "wealth_money": True,
+    "inventory_items": True,
+    "clan": True,
+    "family_relatives": True,
+    "relations": True,
+    "forces": True,
+    "captives": True,
+    "workshops": True,
+}
+
+
+def default_dynamic_hide_until_relevant() -> Dict[str, bool]:
+    return dict(DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS)
+
+
 def default_request_parameters() -> Dict[str, Dict[str, Dict[str, Any]]]:
     """Defaults are disabled so unchecked parameters are not sent upstream."""
     return {
@@ -188,6 +213,7 @@ class Settings:
     max_inventory_lines: int = 8
     max_event_dialogue_messages: int = 14
     max_event_dialogue_settlements: int = 10
+    dynamic_hide_until_relevant: Dict[str, bool] = field(default_factory=default_dynamic_hide_until_relevant)
     prompt_drop_rules: List[Dict[str, Any]] = field(default_factory=list)
     prompt_replace_rules: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -375,6 +401,13 @@ class Settings:
                 self.max_inventory_lines = int(gm.get('max_inventory_lines', self.max_inventory_lines))
                 self.max_event_dialogue_messages = int(gm.get('max_event_dialogue_messages', self.max_event_dialogue_messages))
                 self.max_event_dialogue_settlements = int(gm.get('max_event_dialogue_settlements', self.max_event_dialogue_settlements))
+                hide_cfg = gm.get('dynamic_hide_until_relevant', {})
+                if isinstance(hide_cfg, dict):
+                    merged = default_dynamic_hide_until_relevant()
+                    for key in merged:
+                        if key in hide_cfg:
+                            merged[key] = _bool_from_any(hide_cfg.get(key))
+                    self.dynamic_hide_until_relevant = merged
 
             self.filtering_mode = DEFAULT_FILTERING_MODE
 
@@ -556,6 +589,7 @@ class Settings:
                 'max_inventory_lines': self.max_inventory_lines,
                 'max_event_dialogue_messages': self.max_event_dialogue_messages,
                 'max_event_dialogue_settlements': self.max_event_dialogue_settlements,
+                'dynamic_hide_until_relevant': self.dynamic_hide_until_relevant,
             },
             'prompt_drop_rules': self.prompt_drop_rules,
             'prompt_replace_rules': self.prompt_replace_rules,

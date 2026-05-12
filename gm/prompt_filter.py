@@ -33,6 +33,27 @@ from config.settings import Settings
 logger = logging.getLogger(__name__)
 
 
+DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS: Dict[str, bool] = {
+    "character_briefing": True,
+    "player_current_data": True,
+    "people_present": True,
+    "nearby_settlements": True,
+    "nearby_parties": True,
+    "mentioned_settlements": True,
+    "mentioned_characters": True,
+    "mentioned_parties": True,
+    "appearance_equipment": True,
+    "wealth_money": True,
+    "inventory_items": True,
+    "clan": True,
+    "family_relatives": True,
+    "relations": True,
+    "forces": True,
+    "captives": True,
+    "workshops": True,
+}
+
+
 def normalize_prompt_rule_text(value: Any) -> str:
     """Accept real marker text and GUI-pasted JSON-escaped marker text.
 
@@ -140,6 +161,12 @@ class PromptFilter:
         self.max_nearby_settlements = int(getattr(settings, "max_nearby_settlements", 8))
         self.max_nearby_parties = int(getattr(settings, "max_nearby_parties", 8))
         self.max_inventory_lines = int(getattr(settings, "max_inventory_lines", 8))
+        hide_cfg = getattr(settings, "dynamic_hide_until_relevant", {}) or {}
+        self.dynamic_hide_until_relevant = dict(DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS)
+        if isinstance(hide_cfg, dict):
+            for key in self.dynamic_hide_until_relevant:
+                if key in hide_cfg:
+                    self.dynamic_hide_until_relevant[key] = bool(hide_cfg.get(key))
         # Plain [GM] applies to all request types. Scoped tags such as
         # [GM:EVENTS] and [GM:DIPLOMACY] are request-specific.
         self.max_event_dialogue_messages = int(getattr(settings, "max_event_dialogue_messages", 14))
@@ -1478,15 +1505,15 @@ class PromptFilter:
         if title == 'people physically present in this location right now':
             return self._filter_people_present(raw, focus_text)
         if title == 'nearby settlements strategic context current data':
-            return self._filter_nearby_list(raw, focus_text, kind='settlement')
+            return self._filter_nearby_list(raw, focus_text, kind='settlement', section_key='nearby_settlements')
         if title == 'nearby parties npc vicinity current data':
-            return self._filter_nearby_list(raw, focus_text, kind='party')
+            return self._filter_nearby_list(raw, focus_text, kind='party', section_key='nearby_parties')
         if title == 'mentioned settlements':
-            return self._filter_nearby_list(raw, focus_text, kind='settlement')
+            return self._filter_nearby_list(raw, focus_text, kind='settlement', section_key='mentioned_settlements')
         if title == 'mentioned characters':
-            return self._filter_mentioned_records(raw, focus_text, label='character')
+            return self._filter_mentioned_records(raw, focus_text, label='character', section_key='mentioned_characters')
         if title == 'mentioned parties':
-            return self._filter_nearby_list(raw, focus_text, kind='party')
+            return self._filter_nearby_list(raw, focus_text, kind='party', section_key='mentioned_parties')
         if title == 'conversation history':
             return self._filter_plain_conversation_history(raw)
 
@@ -2642,6 +2669,14 @@ class PromptFilter:
         q = self._norm_lookup(query)
         return any(re.search(r'\b' + re.escape(self._norm_lookup(k)) + r'\b', q) for k in keywords)
 
+    def _hide_until_relevant_enabled(self, key: str) -> bool:
+        """Whether this dynamic AIInfluence section/sub-line should be hidden until relevant."""
+        return bool(self.dynamic_hide_until_relevant.get(key, True))
+
+    def _section_filter_enabled(self, key: str) -> bool:
+        """Global dynamic filtering plus per-section hide-until-relevant switch."""
+        return bool(self.dynamic_filter_enabled and self._hide_until_relevant_enabled(key))
+
     def _extract_line_candidates(self, line: str) -> List[str]:
         """Known lookup candidates from a data line: IDs, display names before (id:...), and item names."""
         candidates: List[str] = []
@@ -2716,7 +2751,7 @@ class PromptFilter:
 
     def _filter_player_data(self, raw: str, query: str) -> str:
         """Filter player data: keep identity/relationship facts, hide equipment/item IDs unless relevant."""
-        if not self.dynamic_filter_enabled:
+        if not self._section_filter_enabled('player_current_data'):
             return raw.strip()
         lines = raw.splitlines()
         if not lines:
@@ -2738,19 +2773,19 @@ class PromptFilter:
         for line in lines[1:]:
             stripped = line.strip()
             if stripped.startswith('- **Their Appearance'):
-                if appearance_ctx or item_ctx:
+                if not self._hide_until_relevant_enabled('appearance_equipment') or appearance_ctx or item_ctx:
                     out.append(line)  # keep full IDs because relevant gear/equipment may be actionable
                 else:
                     out.append('- **Their Appearance:** Equipment details hidden by proxy until appearance/equipment/items are relevant.')
                 continue
             if stripped.startswith('- **Their Inventory') or stripped.startswith('- **Player') and 'Inventory' in stripped:
-                if item_ctx:
+                if not self._hide_until_relevant_enabled('inventory_items') or item_ctx:
                     out.append(line)
                 else:
                     out.append('- **Player Inventory:** Hidden by proxy until item/trade/barter is relevant.')
                 continue
             if stripped.startswith('- **Their Wealth') or stripped.startswith('- **Player Wealth'):
-                if money_ctx:
+                if not self._hide_until_relevant_enabled('wealth_money') or money_ctx:
                     out.append(line)
                 else:
                     out.append('- **Player Wealth:** Hidden by proxy until money/payment/trade is relevant.')
@@ -2774,7 +2809,7 @@ class PromptFilter:
 
     def _filter_character_briefing(self, raw: str, query: str) -> str:
         """Keep character essentials; conditionally keep wealth, inventory, and large clan lists."""
-        if not self.dynamic_filter_enabled:
+        if not self._section_filter_enabled('character_briefing'):
             return raw.strip()
         lines = raw.splitlines()
         if not lines:
@@ -2813,21 +2848,21 @@ class PromptFilter:
                     continue
 
             if stripped.startswith('- **Your Wealth'):
-                if money_ctx:
+                if not self._hide_until_relevant_enabled('wealth_money') or money_ctx:
                     out.append(line)
                 else:
                     out.append('- **Your Wealth:** Available if money/payment/trade becomes relevant.')
                 continue
 
             if stripped.startswith('- **Appearance'):
-                if appearance_ctx or item_ctx:
+                if not self._hide_until_relevant_enabled('appearance_equipment') or appearance_ctx or item_ctx:
                     out.append(line)  # keep IDs when appearance/equipment is relevant
                 else:
                     out.append('- **Appearance:** Gear/equipment details hidden by proxy until appearance/equipment/items are relevant.')
                 continue
 
             if stripped.startswith('- **Clan:**'):
-                if clan_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('clan') or clan_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     # Keep current clan identity/holdings/wars but remove the long all-members list.
@@ -2840,31 +2875,31 @@ class PromptFilter:
 
             line_context = self._briefing_line_context(line)
             if line_context == 'family':
-                if clan_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('family_relatives') or clan_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     out.append('- **Relatives:** Hidden by proxy until family/relative/person is relevant.')
                 continue
             if line_context == 'relations':
-                if relation_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('relations') or relation_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     out.append('- **Friends & Enemies:** Hidden by proxy until relations/specific people are relevant.')
                 continue
             if line_context == 'forces':
-                if forces_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('forces') or forces_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     out.append('- **Your Forces:** Detailed forces hidden by proxy until military/troop/action context is relevant.')
                 continue
             if line_context == 'captives':
-                if captive_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('captives') or captive_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     out.append('- **Your Captives:** Hidden by proxy until prisoners/ransom/release are relevant.')
                 continue
             if line_context == 'workshops':
-                if workshop_ctx or money_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
+                if not self._hide_until_relevant_enabled('workshops') or workshop_ctx or money_ctx or self._line_is_relevant(line, query, fuzzy_context=True):
                     out.append(line)
                 else:
                     out.append('- **Workshops:** Hidden by proxy until workshop/business/trade is relevant.')
@@ -2883,6 +2918,8 @@ class PromptFilter:
     def _filter_inventory_block(self, lines: List[str], query: str, *, include_any: bool) -> List[str]:
         if not lines:
             return []
+        if not self._hide_until_relevant_enabled('inventory_items'):
+            return list(lines)
         header = lines[0]
         note_lines = [l for l in lines[1:] if l.strip().startswith('**NOTE') or l.strip().startswith('(Use exact')]
         item_lines = [l for l in lines[1:] if re.match(r'\s*-\s+[^:]+:', l)]
@@ -2916,7 +2953,7 @@ class PromptFilter:
         return prefix + ', '.join(selected)
 
     def _filter_people_present(self, raw: str, query: str) -> str:
-        if not self.dynamic_filter_enabled:
+        if not self._section_filter_enabled('people_present'):
             return raw.strip()
         people_ctx = self._contains_context(query, ['who is here','who\'s here','present','nearby','escort','walk over','talk to','speak to','follow','bring','find','lord','lady','person','people','someone'])
         lines = raw.splitlines()
@@ -2934,8 +2971,8 @@ class PromptFilter:
         suffix = [f'({more} other people present hidden by proxy.)'] if more > 0 else []
         return '\n'.join([header] + intro + selected[:self.max_people_present] + suffix).strip()
 
-    def _filter_mentioned_records(self, raw: str, query: str, *, label: str) -> str:
-        if not self.dynamic_filter_enabled:
+    def _filter_mentioned_records(self, raw: str, query: str, *, label: str, section_key: str = 'mentioned_characters') -> str:
+        if not self._section_filter_enabled(section_key):
             return raw.strip()
         lines = raw.splitlines()
         if not lines:
@@ -2953,8 +2990,10 @@ class PromptFilter:
         suffix = [f'({more} other {label} records hidden by proxy.)'] if more > 0 else []
         return '\n'.join([header] + intro + selected[:self.max_people_present] + suffix).strip()
 
-    def _filter_nearby_list(self, raw: str, query: str, *, kind: str) -> str:
-        if not self.dynamic_filter_enabled:
+    def _filter_nearby_list(self, raw: str, query: str, *, kind: str, section_key: str | None = None) -> str:
+        if section_key is None:
+            section_key = 'nearby_settlements' if kind == 'settlement' else 'nearby_parties'
+        if not self._section_filter_enabled(section_key):
             return raw.strip()
         if kind == 'settlement':
             ctx_words = ['where','location','settlement','town','castle','village','travel','go to','patrol','raid','siege','nearby','distance','property','attack','defend']

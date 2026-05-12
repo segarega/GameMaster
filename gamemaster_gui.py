@@ -2,6 +2,7 @@
 
 # Copyright (C) 2026 SEGAREGA
 # SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Modern GameMaster GUI.
 
 This is a PyQt6 settings editor/server manager that preserves the full app
@@ -125,14 +126,54 @@ KNOWN_GM_FIELDS: Dict[str, Tuple[str, str, Any, Any]] = {
     "dynamic_filter_enabled": ("Enable dynamic GM filtering", "bool", None, True),
     "max_event_history": ("Max event history", "int", (0, 1000), 50),
     "dialogue_history_size": ("Dialogue history size", "int", (0, 500), 15),
-    "fuzzy_match_threshold": ("Fuzzy match threshold", "float", (0.0, 1.0), 0.88),
+    "fuzzy_match_threshold": ("Dynamic data fuzzy match threshold", "float", (0.0, 1.0), 0.88),
     "max_people_present": ("Max people present", "int", (0, 500), 5),
     "max_nearby_settlements": ("Max nearby settlements", "int", (0, 500), 5),
     "max_nearby_parties": ("Max nearby parties", "int", (0, 500), 5),
     "max_inventory_lines": ("Max inventory lines", "int", (0, 500), 5),
     "max_event_dialogue_messages": ("Events - max dialogue lines", "int", (0, 500), 15),
     "max_event_dialogue_settlements": ("Events - max settlements mentioned", "int", (0, 500), 15),
- }
+}
+
+DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS: Dict[str, bool] = {
+    "character_briefing": True,
+    "player_current_data": True,
+    "people_present": True,
+    "nearby_settlements": True,
+    "nearby_parties": True,
+    "mentioned_settlements": True,
+    "mentioned_characters": True,
+    "mentioned_parties": True,
+    "appearance_equipment": True,
+    "wealth_money": True,
+    "inventory_items": True,
+    "clan": True,
+    "family_relatives": True,
+    "relations": True,
+    "forces": True,
+    "captives": True,
+    "workshops": True,
+}
+
+DYNAMIC_HIDE_UNTIL_RELEVANT_LABELS: Tuple[Tuple[str, str], ...] = (
+    ("character_briefing", "Character Briefing (CURRENT DATA)"),
+    ("player_current_data", "The Player Current Data"),
+    ("people_present", "People physically present"),
+    ("nearby_settlements", "Nearby settlements"),
+    ("nearby_parties", "Nearby parties"),
+    ("mentioned_settlements", "Mentioned settlements"),
+    ("mentioned_characters", "Mentioned characters"),
+    ("mentioned_parties", "Mentioned parties"),
+    ("appearance_equipment", "Appearance/equipment lines"),
+    ("wealth_money", "Wealth/money lines"),
+    ("inventory_items", "Inventory/item lines"),
+    ("clan", "Clan line"),
+    ("family_relatives", "Family/relatives lines"),
+    ("relations", "Relations/friends/enemies lines"),
+    ("forces", "Forces/troops lines"),
+    ("captives", "Captives/prisoners lines"),
+    ("workshops", "Workshops/business lines"),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -573,6 +614,7 @@ class GameMasterGUI(QMainWindow):
         self.request_parameter_widgets: Dict[str, Dict[str, Tuple[QCheckBox, QLineEdit]]] = {}
         self.system_prompt_widgets: Dict[str, Dict[str, QPlainTextEdit]] = {}
         self.gm_widgets: Dict[str, QWidget] = {}
+        self.gm_dynamic_hide_widgets: Dict[str, QCheckBox] = {}
         self.gm_extra_widgets: Dict[str, QWidget] = {}
         self.model_fields: Dict[str, QComboBox] = {}
         self.detection_rules: List[Dict[str, Any]] = []
@@ -798,6 +840,19 @@ class GameMasterGUI(QMainWindow):
             row += 1
         limits.vbox.addLayout(grid)
         layout.addWidget(limits)
+
+        dynamic_controls = Card(
+            "Hide-Until-Relevant Controls",
+            "Checked means the proxy may hide or summarize that live AIInfluence section until the current request makes it relevant. Unchecked means pass that section/line through unfiltered."
+        )
+        grid = QGridLayout()
+        grid.setColumnStretch(1, 1)
+        for row, (key, label) in enumerate(DYNAMIC_HIDE_UNTIL_RELEVANT_LABELS):
+            widget = QCheckBox("Hide until relevant")
+            self.gm_dynamic_hide_widgets[key] = widget
+            add_grid_row(grid, row, label, widget)
+        dynamic_controls.vbox.addLayout(grid)
+        layout.addWidget(dynamic_controls)
 
         self.gm_extras_card = Card("Additional GM Keys", "Any simple extra keys already present under settings.json → gm are editable here and preserved on save.")
         self.gm_extras_layout = QGridLayout()
@@ -1254,12 +1309,18 @@ class GameMasterGUI(QMainWindow):
             value = gm.get(key, default)
             self.set_widget_value(widget, value, kind)
 
+        dynamic_hide = gm.get("dynamic_hide_until_relevant", {})
+        if not isinstance(dynamic_hide, dict):
+            dynamic_hide = {}
+        for key, widget in self.gm_dynamic_hide_widgets.items():
+            widget.setChecked(text_to_bool(dynamic_hide.get(key, DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS.get(key, True))))
+
         # Rebuild editable extras for simple unknown gm keys.
         self.clear_layout(self.gm_extras_layout)
         self.gm_extra_widgets.clear()
         row = 0
         for key, value in sorted(gm.items()):
-            if key in KNOWN_GM_FIELDS or key in HIDDEN_GM_FIELDS or key in {"prompt_drop_rules", "prompt_replace_rules"}:
+            if key in KNOWN_GM_FIELDS or key in HIDDEN_GM_FIELDS or key in {"prompt_drop_rules", "prompt_replace_rules", "dynamic_hide_until_relevant"}:
                 continue
             if isinstance(value, (bool, int, float, str)) or value is None:
                 kind = "bool" if isinstance(value, bool) else "float" if isinstance(value, float) else "int" if isinstance(value, int) else "line"
@@ -1609,6 +1670,10 @@ class GameMasterGUI(QMainWindow):
         for key, widget in self.gm_widgets.items():
             _, kind, _, _ = KNOWN_GM_FIELDS[key]
             gm[key] = self.widget_value(widget, kind)
+        gm["dynamic_hide_until_relevant"] = {
+            key: bool(widget.isChecked())
+            for key, widget in self.gm_dynamic_hide_widgets.items()
+        }
         for key, widget in self.gm_extra_widgets.items():
             if key in HIDDEN_GM_FIELDS:
                 continue
