@@ -332,7 +332,7 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 | Setting | Description |
 |---|---|
 | **Enable dynamic GM filtering** | Master switch. When disabled, prompts pass through mostly unmodified, apart from policy-header logic. |
-| **Fuzzy match threshold** | `0.0`–`1.0`. Higher values make dynamic relevance matching stricter. Default: `0.88`. |
+| **Fuzzy match threshold** | `0.0`–`1.0`. Higher values make dynamic relevance matching stricter for `Hide-Until-Relevant Controls`. Default: `0.88`. |
 | **Max event history** | Maximum historical events kept in the prompt. Default: `50`. |
 | **Dialogue history size** | Recent dialogue exchanges kept. Default: `15`. |
 | **Events — max dialogue lines** | Caps embedded dialogue excerpts in event requests. Default: `15`. |
@@ -346,6 +346,28 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 | **Max nearby settlements** | Maximum settlement descriptions. Default: `5`. |
 | **Max nearby parties** | Maximum wandering party/warband descriptions. Default: `5`. |
 | **Max inventory lines** | Maximum inventory lines. Default: `5`. |
+
+#### Hide-Until-Relevant Controls
+
+| Setting | Description |
+|---|---|
+| **Character Briefing (CURRENT DATA)** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **The Player Current Data** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **People physically present** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Nearby settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Nearby parties** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Mentioned settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Mentioned characters** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Mentioned parties** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Appearance/equipment lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Wealth/money lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Inventory/item lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Clan line** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Family/relatives lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Relations/friends/enemies lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Forces/troops lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Captives/prisoners lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Workshop/business lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
 
 ---
 
