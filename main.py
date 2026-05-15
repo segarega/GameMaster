@@ -84,6 +84,18 @@ def _json_for_log(value: Any) -> str:
         return str(value)
 
 
+def _raw_content_for_log(content: Any) -> str:
+    """Render raw log content, prettifying JSON strings when requested."""
+    text = content if isinstance(content, str) else str(content)
+    if settings and settings.llm_log_pretty_json:
+        try:
+            parsed = json.loads(text)
+            return _json_for_log(parsed)
+        except Exception:
+            pass
+    return text
+
+
 def _log_block_text(label: str, request_id: str, content: str) -> str:
     timestamp = datetime.now(timezone.utc).isoformat()
     return (
@@ -105,7 +117,7 @@ async def append_llm_log(label: str, request_id: str, content: Any, *, raw: bool
     if not settings or not settings.llm_log_enabled:
         return
     try:
-        text = content if raw else _json_for_log(content)
+        text = _raw_content_for_log(content) if raw else _json_for_log(content)
         await asyncio.to_thread(
             _append_text_file,
             settings.llm_log_path,
@@ -716,6 +728,7 @@ async def stats():
                     or next((m for m in settings.models.values() if m), "")
                 ),
                 "summary_prompt_chars": len(settings.character_memory_summary_prompt or ""),
+                "merge_prompt_chars": len(settings.character_memory_merge_prompt or ""),
                 "profile_prompt_chars": len(settings.character_memory_profile_update_prompt or ""),
                 "runtime": character_memory_manager.get_status() if character_memory_manager else {},
             } if settings else {},
@@ -1146,16 +1159,17 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
         repair_summaries = _repair_chat_completion_content(result)
         if repair_summaries:
             logger.info("JSON repair applied to request %s: %s", request_id, "; ".join(repair_summaries))
-        await append_llm_log(
-            "RESPONSE RETURNED TO GAME",
-            request_id,
-            {
-                "local_prompt_tokens_estimate": local_prompt_tokens,
-                "provider_prompt_tokens_reported": provider_prompt_tokens,
-                "repair_summaries": repair_summaries,
-                "payload": result,
-            },
-        )
+        if repair_summaries:
+            await append_llm_log(
+                "RESPONSE RETURNED TO GAME AFTER REPAIR",
+                request_id,
+                {
+                    "local_prompt_tokens_estimate": local_prompt_tokens,
+                    "provider_prompt_tokens_reported": provider_prompt_tokens,
+                    "repair_summaries": repair_summaries,
+                    "payload_after_repair": result,
+                },
+            )
 
         # Add timing info
         elapsed = time.time() - request_start

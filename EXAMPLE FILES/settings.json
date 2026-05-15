@@ -16,7 +16,8 @@
   },
   "request_type_detection": {
     "dialogue": [
-      "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown."
+      "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
+      "## Group Participants Present:"
     ],
     "events": [
       "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
@@ -30,26 +31,22 @@
   },
   "gm": {
     "dynamic_filter_enabled": true,
-    "max_event_history": 50,
-    "dialogue_history_size": 100,
+    "max_event_history": 200,
+    "dialogue_history_size": 200,
     "fuzzy_match_threshold": 0.88,
     "max_people_present": 10,
     "max_nearby_settlements": 7,
     "max_nearby_parties": 5,
     "max_inventory_lines": 5,
-    "max_event_dialogue_messages": 15,
-    "max_event_dialogue_settlements": 15
+    "max_event_dialogue_messages": 20,
+    "max_event_dialogue_settlements": 10
   },
   "static_gm_index": {
     "enabled": true,
     "ai_influence_folder": "C:/Games/Steam/steamapps/common/Mount & Blade II Bannerlord/Modules/AIInfluence",
     "files": [
       "world.txt",
-      "actionrules.txt",
-      "battlecombatrules.txt",
-      "eventsanalyzerrules.txt",
-      "eventsgeneratorrules.txt",
-      "kingdomstatementrules.txt"
+      "actionrules.txt"
     ],
     "db_path": "cache/static_gm_index.sqlite3",
     "selector_payload": "summary",
@@ -70,16 +67,17 @@
     "api_key": "",
     "model": "deepseek/deepseek-v4-flash",
     "temperature": 0.1,
-    "max_tokens": 700,
+    "max_tokens": 32000,
     "timeout_seconds": 180.0,
-    "preserve_last_lines": 10,
+    "preserve_last_lines": 20,
     "auto_enabled": true,
-    "auto_trigger_raw_lines": 16,
+    "auto_trigger_raw_lines": 30,
     "auto_scan_interval_seconds": 30.0,
     "auto_debounce_seconds": 8.0,
     "max_memory_entries": 5,
-    "summary_prompt": "You are compressing a character's conversation history for long-term game memory. Summarize only the provided conversation lines. Preserve concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, allegiances, emotional shifts, debts, bargains, and information the character learned from or about the player. Preserve the character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation. Do not invent events, motives, names, titles, or relationships. Do not contradict existing memory. Do not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\nWrite 1-2 concise sentences in past tense. The sentences must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON.",
-    "profile_update_prompt": "You are conservatively updating a game character profile using conversation history. You may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay. Examples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player. Do not rewrite the character into a different person. Preserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change. Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence. Prefer small additive edits over broad rewrites. Keep the existing structure and style where possible. If no meaningful durable change is needed, return changed=false. Return strict JSON only with this shape: {\"changed\": true or false, \"new_personality\": string or null, \"new_backstory\": string or null, \"reason\": string, \"confidence\": \"low\" | \"medium\" | \"high\"}."
+    "summary_prompt": "You are compressing a character's conversation history for long-term game memory.\n\nSummarize only the provided conversation lines.\n\nPreserve:\n- Concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, and allegiances.\n- Emotional shifts, debts, bargains, and information the character learned from or about the player.\n- The character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation.\n\nDo not invent events, motives, names, titles, or relationships.\nDo not contradict existing memory.\nDo not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\n\nWrite 1-2 short paragraphs in past tense. The paragraphs must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON.",
+    "merge_prompt": "Consolidate the provided MEMORY entries for one game character into one concise long-term memory paragraph suitable for a MEMORY entry in ConversationHistory.\n\nPreserve durable facts, names, places, titles, factions, relationships, promises, threats, secrets, debts, conflicts, favors, and changed attitudes toward the player.\nPreserve the character's latest known attitude and relationship state.\nWhen older and newer entries conflict, prefer the newest or most specific information.\n\nRemove repetition and trivial details.\nDo not invent anything.\nDo not use markdown, bullets, headings, labels, or JSON.",
+    "profile_update_prompt": "You are conservatively updating a game character profile using conversation history.\n\nYou may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay.\n\nExamples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player.\n\nDo not rewrite the character into a different person.\nPreserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change.\nDo not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence.\nPrefer small additive edits over broad rewrites.\nKeep the existing structure and style where possible.\n\nIf no meaningful durable change is needed, return changed=false.\n\nReturn strict JSON only with this shape:\n{\"changed\": true or false, \"new_personality\": string or null, \"new_backstory\": string or null, \"reason\": string, \"confidence\": \"low\" | \"medium\" | \"high\"}."
   },
   "prompt_drop_rules": [
     {

@@ -300,6 +300,16 @@ class GMSelectorClient:
         except Exception:
             return str(value)
 
+    def _raw_content_for_log(self, content: Any) -> str:
+        """Render raw selector content, prettifying JSON strings when requested."""
+        text = content if isinstance(content, str) else str(content)
+        if self.log_pretty_json:
+            try:
+                return self._json_for_log(json.loads(text))
+            except Exception:
+                pass
+        return text
+
     def _log_block_text(self, label: str, content: str) -> str:
         timestamp = datetime.now(timezone.utc).isoformat()
         return (
@@ -319,7 +329,7 @@ class GMSelectorClient:
         if not self.log_enabled:
             return
         try:
-            text = content if raw else self._json_for_log(content)
+            text = self._raw_content_for_log(content) if raw else self._json_for_log(content)
             await asyncio.to_thread(
                 self._append_text_file,
                 self.log_path,

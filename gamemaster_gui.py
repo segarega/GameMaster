@@ -68,91 +68,110 @@ REQUEST_TYPES: Tuple[str, ...] = ("dialogue", "diplomacy", "events")
 REQUEST_PARAMETERS: Tuple[str, ...] = ("temperature", "top_p", "top_k")
 
 DEFAULT_SELECTOR_INSTRUCTION = (
-    'You are a proxy-side selector. '
-    'Use the provided request context and candidate indexed entries to decide which candidate entry IDs should be kept. '
-    'Resolve implication, pronouns, vague references, allegiance, location, recent dialogue, speaker identity, and relevant social context. '
-    'Select from the provided candidates only. Never rewrite, summarize, or invent content. '
-    'When uncertain, prefer keeping slightly too much over omitting needed context. '
-    'Return strict JSON only in this shape: {"blocks":[{"block_id":"block_1","keep_ids":["id1","id2"]}]}.'
+    "You are an AI memory-filtering module for a roleplaying game. Your sole purpose is to select relevant lore and knowledge entries so an NPC can accurately respond to a Player.\n\n"
+    "You will receive an input containing:\n"
+    "1. CONTEXT EXTRACTS: The NPC's identity and background.\n"
+    "2. Conversation History: The recent dialogue between the Player and the NPC.\n"
+    "3. CANDIDATE INDEXED ENTRIES: A list of knowledge sections, each with an 'id', 'title', and 'Summary'.\n\n"
+    "Instructions:\n"
+    "1. Analyze the Player's most recent message(s) in the Conversation History.\n"
+    "2. Read the Summary of each candidate entry.\n"
+    "3. Determine if the Summary contains information the NPC realistically needs to know to formulate a coherent, contextually accurate reply to the Player.\n"
+    "4. Extract the exact string from the `id` attribute (e.g., \"s001\", \"block_1\") of any relevant <SECTION> or <BLOCK>.\n\n"
+    "Output Formatting Rules (CRITICAL):\n"
+    "You must output strictly valid JSON and nothing else.\n"
+    "- DO NOT wrap the output in markdown code blocks (e.g., no ```json or ```).\n"
+    "- DO NOT include any conversational text, reasoning, greetings, or explanations.\n"
+    "- DO NOT output anything outside of the JSON object.\n\n"
+    "Your output must exactly match this schema:\n"
+    "{\"blocks\":[{\"block_id\":\"block_1\",\"keep_ids\":[\"id1\",\"id2\"]}]}"
 )
 DEFAULT_FILTERING_MODE = "selector"
 DEFAULT_SUMMARY_INSTRUCTION = (
-    'You are summarizing one indexed text entry so another AI can later decide whether this entry is relevant to a request. '
-    'Return only one concise paragraph, ideally 45-80 words. '
-    "Preserve the entry's core meaning, important details, constraints, context, terms that may be useful for matching, "
-    'and any details that would change when the full entry should or should not be included. '
-    'Do not invent, generalize beyond the text, or add outside knowledge. Do not mention that this is a summary. '
-    'Do not use markdown, bullets, headings, or labels unless they are necessary to preserve meaning. '
-    'Compress aggressively, but keep enough concrete detail that the later AI can reliably decide whether the full entry should be included.'
+    "You are an expert data compressor.\n\n"
+    "Your task is to condense detailed information into ultra-concise, telegraphic summaries with an intent to reduce input-token usage for keyword database retrieval.\n\n"
+    "Rules for Summarization:\n"
+    "- No filler: Remove articles (a, an, the), flowery language, and full sentences.\n"
+    "- Telegraphic style: Use slashes (/), semicolons (;), and commas to string together concepts tightly.\n"
+    "- Prioritize the unique: Keep highly specific details and drop generic lore.\n"
+    "- Use keywords, not sentences.\n"
+    "- Format: [Name]: [Core Identity]. [Key details/customs/taboos]."
 )
 
 DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT = (
-    "You are compressing a character's conversation history for long-term game memory. "
-    "Summarize only the provided conversation lines. Preserve concrete facts, promises, threats, favors, secrets, "
-    "relationships, conflicts, names, places, titles, allegiances, emotional shifts, debts, bargains, and information "
-    "the character learned from or about the player. Preserve the character's attitude toward the player and any "
-    "changes in trust, suspicion, respect, fear, anger, loyalty, or obligation. Do not invent events, motives, names, "
-    "titles, or relationships. Do not contradict existing memory. Do not include trivial greetings, repeated phrasing, "
-    "or generic banter unless it changed the relationship or revealed useful information. Write one concise paragraph "
-    "in past tense. The paragraph must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, "
-    "bullets, headings, or JSON."
+    "You are compressing a character's conversation history for long-term game memory.\n\n"
+    "Summarize only the provided conversation lines.\n\n"
+    "Preserve:\n"
+    "- Concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, and allegiances.\n"
+    "- Emotional shifts, debts, bargains, and information the character learned from or about the player.\n"
+    "- The character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation.\n\n"
+    "Do not invent events, motives, names, titles, or relationships.\n"
+    "Do not contradict existing memory.\n"
+    "Do not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\n\n"
+    "Write 1-2 short paragraphs in past tense. The paragraphs must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON."
+)
+
+DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT = (
+    "Consolidate the provided MEMORY entries for one game character into one concise long-term memory paragraph suitable for a MEMORY entry in ConversationHistory.\n\n"
+    "Preserve durable facts, names, places, titles, factions, relationships, promises, threats, secrets, debts, conflicts, favors, and changed attitudes toward the player.\n"
+    "Preserve the character's latest known attitude and relationship state.\n"
+    "When older and newer entries conflict, prefer the newest or most specific information.\n\n"
+    "Remove repetition and trivial details.\n"
+    "Do not invent anything.\n"
+    "Do not use markdown, bullets, headings, labels, or JSON."
 )
 
 DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT = (
-    "You are conservatively updating a game character profile using conversation history. "
-    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful "
-    "information that should affect future roleplay. Examples include new relationships, loyalties, grudges, debts, "
-    "promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the "
-    "player. Do not rewrite the character into a different person. Preserve their established temperament, social status, "
-    "history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual "
-    "change. Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a "
-    "lifelong enemy into a friend without strong evidence. Prefer small additive edits over broad rewrites. Keep the "
-    "existing structure and style where possible. If no meaningful durable change is needed, return changed=false. "
-    'Return strict JSON only with this shape: {"changed": true or false, "new_personality": string or null, '
-    '"new_backstory": string or null, "reason": string, "confidence": "low" | "medium" | "high"}.'
+    "You are conservatively updating a game character profile using conversation history.\n\n"
+    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay.\n\n"
+    "Examples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player.\n\n"
+    "Do not rewrite the character into a different person.\n"
+    "Preserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change.\n"
+    "Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence.\n"
+    "Prefer small additive edits over broad rewrites.\n"
+    "Keep the existing structure and style where possible.\n\n"
+    "If no meaningful durable change is needed, return changed=false.\n\n"
+    "Return strict JSON only with this shape:\n"
+    '{"changed": true or false, "new_personality": string or null, "new_backstory": string or null, "reason": string, "confidence": "low" | "medium" | "high"}.'
 )
 HIDDEN_GM_FIELDS = {"max" + "_sections", "min" + "_similarity", "use" + "_rag", "rag" + "_enabled", "embedding" + "_model"}
 
 DEFAULT_STATIC_GM_INDEX_FILES = [
     "world.txt",
     "actionrules.txt",
-    "battlecombatrules.txt",
-    "eventsanalyzerrules.txt",
-    "eventsgeneratorrules.txt",
-    "kingdomstatementrules.txt",
 ]
 
 KNOWN_GM_FIELDS: Dict[str, Tuple[str, str, Any, Any]] = {
     "dynamic_filter_enabled": ("Enable dynamic GM filtering", "bool", None, True),
-    "max_event_history": ("Max event history", "int", (0, 1000), 50),
-    "dialogue_history_size": ("Dialogue history size", "int", (0, 500), 15),
+    "max_event_history": ("Max event history", "int", (0, 1000), 200),
+    "dialogue_history_size": ("Dialogue history size", "int", (0, 500), 200),
     "fuzzy_match_threshold": ("Dynamic data fuzzy match threshold", "float", (0.0, 1.0), 0.88),
-    "max_people_present": ("Max people present", "int", (0, 500), 5),
-    "max_nearby_settlements": ("Max nearby settlements", "int", (0, 500), 5),
+    "max_people_present": ("Max people present", "int", (0, 500), 10),
+    "max_nearby_settlements": ("Max nearby settlements", "int", (0, 500), 7),
     "max_nearby_parties": ("Max nearby parties", "int", (0, 500), 5),
     "max_inventory_lines": ("Max inventory lines", "int", (0, 500), 5),
-    "max_event_dialogue_messages": ("Events - max dialogue lines", "int", (0, 500), 15),
-    "max_event_dialogue_settlements": ("Events - max settlements mentioned", "int", (0, 500), 15),
+    "max_event_dialogue_messages": ("Events - max dialogue lines", "int", (0, 500), 20),
+    "max_event_dialogue_settlements": ("Events - max settlements mentioned", "int", (0, 500), 10),
 }
 
 DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS: Dict[str, bool] = {
-    "character_briefing": True,
-    "player_current_data": True,
-    "people_present": True,
-    "nearby_settlements": True,
-    "nearby_parties": True,
-    "mentioned_settlements": True,
-    "mentioned_characters": True,
-    "mentioned_parties": True,
-    "appearance_equipment": True,
-    "wealth_money": True,
-    "inventory_items": True,
-    "clan": True,
-    "family_relatives": True,
-    "relations": True,
-    "forces": True,
-    "captives": True,
-    "workshops": True,
+    "character_briefing": False,
+    "player_current_data": False,
+    "people_present": False,
+    "nearby_settlements": False,
+    "nearby_parties": False,
+    "mentioned_settlements": False,
+    "mentioned_characters": False,
+    "mentioned_parties": False,
+    "appearance_equipment": False,
+    "wealth_money": False,
+    "inventory_items": False,
+    "clan": False,
+    "family_relatives": False,
+    "relations": False,
+    "forces": False,
+    "captives": False,
+    "workshops": False,
 }
 
 DYNAMIC_HIDE_UNTIL_RELEVANT_LABELS: Tuple[Tuple[str, str], ...] = (
@@ -207,6 +226,42 @@ def default_request_parameters() -> Dict[str, Dict[str, Dict[str, Any]]]:
     }
 
 
+def default_request_type_detection() -> Dict[str, List[str]]:
+    return {
+        "dialogue": [
+            "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
+            "## Group Participants Present:",
+        ],
+        "events": [
+            "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data.",
+        ],
+        "diplomacy": [
+            "### CRITICAL REMINDER: You Are a Living Ruler ###",
+        ],
+    }
+
+
+def default_selector_context_rules() -> List[Dict[str, Any]]:
+    return [
+        {
+            "name": "Character Briefing (CURRENT DATA)",
+            "request_types": ["dialogue"],
+            "beginning": "### Character Briefing (CURRENT DATA) ###",
+            "end": "**Description:**",
+            "include_beginning_marker": False,
+            "include_end_marker": False,
+        },
+        {
+            "name": "### Conversation History ###",
+            "request_types": ["dialogue"],
+            "beginning": "### Conversation History ###",
+            "end": "Last Interaction:",
+            "include_beginning_marker": False,
+            "include_end_marker": False,
+        },
+    ]
+
+
 def default_system_prompts() -> Dict[str, Dict[str, str]]:
     return {request_type: {"pre_history": "", "post_history": ""} for request_type in REQUEST_TYPES}
 
@@ -221,7 +276,7 @@ def default_config() -> Dict[str, Any]:
             "site_url": "",
             "app_title": "GameMaster",
         },
-        "request_type_detection": {"dialogue": [], "diplomacy": [], "events": []},
+        "request_type_detection": default_request_type_detection(),
         "filtering": {"mode": DEFAULT_FILTERING_MODE},
         "gm": {key: info[3] for key, info in KNOWN_GM_FIELDS.items()},
         "static_gm_index": {
@@ -248,15 +303,16 @@ def default_config() -> Dict[str, Any]:
             "api_key": "",
             "model": "",
             "temperature": 0.1,
-            "max_tokens": 700,
+            "max_tokens": 32000,
             "timeout_seconds": 180.0,
-            "preserve_last_lines": 10,
+            "preserve_last_lines": 20,
             "auto_enabled": False,
-            "auto_trigger_raw_lines": 16,
+            "auto_trigger_raw_lines": 30,
             "auto_scan_interval_seconds": 30.0,
             "auto_debounce_seconds": 8.0,
             "max_memory_entries": 5,
             "summary_prompt": DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT,
+            "merge_prompt": DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT,
             "profile_update_prompt": DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT,
         },
         "prompt_drop_rules": [],
@@ -268,13 +324,13 @@ def default_config() -> Dict[str, Any]:
             "api_key": "",
             "model": "",
             "temperature": 0.0,
-            "max_tokens": 1200,
+            "max_tokens": 32000,
             "timeout_seconds": 120.0,
             "instruction": DEFAULT_SELECTOR_INSTRUCTION,
             "log_enabled": False,
             "log_path": "logs/selector-log.txt",
             "pretty_json": True,
-            "context_rules": [],
+            "context_rules": default_selector_context_rules(),
         },
         "request_parameters": default_request_parameters(),
         "system_prompts": default_system_prompts(),
@@ -959,7 +1015,7 @@ class GameMasterGUI(QMainWindow):
         self.sel_temp_entry = polish_line_edit(QLineEdit(format_request_parameter_value("temperature", 0.0)))
         self.sel_temp_entry.setPlaceholderText("e.g. 0, 0.7, 1, or 1.2")
         self.sel_temp_entry.setToolTip("Selector sampling temperature. Saved as a plain JSON number; no forced 0.000 display.")
-        self.sel_max_tokens_entry = make_spin("int", 1200, (1, 1000000))
+        self.sel_max_tokens_entry = make_spin("int", 32000, (1, 1000000))
         self.sel_timeout_entry = make_spin("float", 120.0, (1.0, 3600.0))
         add_grid_row(grid, 0, "API URL", self.sel_api_url_entry)
         add_grid_row(grid, 1, "API Key", self.sel_api_key_entry)
@@ -1092,7 +1148,7 @@ class GameMasterGUI(QMainWindow):
         self.fetch_char_mem_models_btn.clicked.connect(lambda: self.fetch_models("character_memory"))
         model_layout.addWidget(self.fetch_char_mem_models_btn)
         self.char_mem_temp_entry = polish_line_edit(QLineEdit(format_request_parameter_value("temperature", 0.1)))
-        self.char_mem_max_tokens_entry = make_spin("int", 700, (1, 1000000))
+        self.char_mem_max_tokens_entry = make_spin("int", 32000, (1, 1000000))
         self.char_mem_timeout_entry = make_spin("float", 180.0, (1.0, 7200.0))
         add_grid_row(grid, 0, "API URL", self.char_mem_api_url_entry)
         add_grid_row(grid, 1, "API Key", self.char_mem_api_key_entry)
@@ -1106,9 +1162,9 @@ class GameMasterGUI(QMainWindow):
         behavior_card = Card("Conversation Summarization", "Summarizes old raw ConversationHistory lines and preserves the newest lines exactly.")
         grid = QGridLayout()
         grid.setColumnStretch(1, 1)
-        self.char_mem_preserve_lines_entry = make_spin("int", 10, (0, 10000))
+        self.char_mem_preserve_lines_entry = make_spin("int", 20, (0, 10000))
         self.char_mem_auto_enabled_var = QCheckBox("Auto summarize")
-        self.char_mem_auto_trigger_entry = make_spin("int", 16, (1, 10000))
+        self.char_mem_auto_trigger_entry = make_spin("int", 30, (1, 10000))
         self.char_mem_auto_scan_interval_entry = make_spin("float", 30.0, (5.0, 3600.0))
         self.char_mem_auto_debounce_entry = make_spin("float", 8.0, (0.0, 3600.0))
         self.char_mem_max_memory_entries_entry = make_spin("int", 5, (1, 1000))
@@ -1117,19 +1173,25 @@ class GameMasterGUI(QMainWindow):
         add_grid_row(grid, 2, "Auto trigger raw lines", self.char_mem_auto_trigger_entry)
         add_grid_row(grid, 3, "Auto scan interval seconds", self.char_mem_auto_scan_interval_entry)
         add_grid_row(grid, 4, "Auto debounce seconds", self.char_mem_auto_debounce_entry)
-        add_grid_row(grid, 5, "Max MEMORY entries", self.char_mem_max_memory_entries_entry)
+        add_grid_row(grid, 5, "Merge MEMORY entries after", self.char_mem_max_memory_entries_entry)
         behavior_card.vbox.addLayout(grid)
         layout.addWidget(behavior_card)
 
         prompts_card = Card("Prompts", "Summary prompt creates MEMORY entries. Profile prompt conservatively updates personality/backstory.")
         self.char_mem_summary_prompt_textbox = polish_text_edit(QPlainTextEdit(), 130)
         self.char_mem_summary_prompt_textbox.setPlaceholderText(DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT)
+        self.char_mem_merge_prompt_textbox = polish_text_edit(QPlainTextEdit(), 130)
+        self.char_mem_merge_prompt_textbox.setPlaceholderText(DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT)
         self.char_mem_profile_prompt_textbox = polish_text_edit(QPlainTextEdit(), 160)
         self.char_mem_profile_prompt_textbox.setPlaceholderText(DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT)
         label = QLabel("Conversation summary prompt")
         label.setObjectName("FieldLabel")
         prompts_card.vbox.addWidget(label)
         prompts_card.vbox.addWidget(self.char_mem_summary_prompt_textbox)
+        label = QLabel("Memory merge prompt")
+        label.setObjectName("FieldLabel")
+        prompts_card.vbox.addWidget(label)
+        prompts_card.vbox.addWidget(self.char_mem_merge_prompt_textbox)
         label = QLabel("Personality / backstory update prompt")
         label.setObjectName("FieldLabel")
         prompts_card.vbox.addWidget(label)
@@ -1359,7 +1421,7 @@ class GameMasterGUI(QMainWindow):
         self.sel_api_key_entry.setText(str(selector.get("api_key", "")))
         set_combo_text(self.sel_model_entry, str(selector.get("model", "")))
         self.sel_temp_entry.setText(format_request_parameter_value("temperature", selector.get("temperature", 0.0)))
-        self.sel_max_tokens_entry.setValue(int(selector.get("max_tokens", 1200) or 1200))
+        self.sel_max_tokens_entry.setValue(int(selector.get("max_tokens", 32000) or 32000))
         self.sel_timeout_entry.setValue(float(selector.get("timeout_seconds", 120.0) or 120.0))
         self.sel_inst_textbox.setPlainText(str(selector.get("instruction", DEFAULT_SELECTOR_INSTRUCTION) or ""))
         self.sel_log_enabled_var.setChecked(text_to_bool(selector.get("log_enabled", False)))
@@ -1391,15 +1453,16 @@ class GameMasterGUI(QMainWindow):
         self.char_mem_api_key_entry.setText(str(cm.get("api_key", "") or ""))
         set_combo_text(self.char_mem_model_entry, str(cm.get("model", "") or ""))
         self.char_mem_temp_entry.setText(format_request_parameter_value("temperature", cm.get("temperature", 0.1)))
-        self.char_mem_max_tokens_entry.setValue(int(cm.get("max_tokens", 700) or 700))
+        self.char_mem_max_tokens_entry.setValue(int(cm.get("max_tokens", 32000) or 32000))
         self.char_mem_timeout_entry.setValue(float(cm.get("timeout_seconds", 180.0) or 180.0))
-        self.char_mem_preserve_lines_entry.setValue(int(cm.get("preserve_last_lines", 10) or 10))
+        self.char_mem_preserve_lines_entry.setValue(int(cm.get("preserve_last_lines", 20) or 20))
         self.char_mem_auto_enabled_var.setChecked(text_to_bool(cm.get("auto_enabled", False)))
-        self.char_mem_auto_trigger_entry.setValue(int(cm.get("auto_trigger_raw_lines", 16) or 16))
+        self.char_mem_auto_trigger_entry.setValue(int(cm.get("auto_trigger_raw_lines", 30) or 30))
         self.char_mem_auto_scan_interval_entry.setValue(float(cm.get("auto_scan_interval_seconds", 30.0) or 30.0))
         self.char_mem_auto_debounce_entry.setValue(float(cm.get("auto_debounce_seconds", 8.0) or 8.0))
         self.char_mem_max_memory_entries_entry.setValue(int(cm.get("max_memory_entries", 5) or 5))
         self.char_mem_summary_prompt_textbox.setPlainText(str(cm.get("summary_prompt", "") or DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT))
+        self.char_mem_merge_prompt_textbox.setPlainText(str(cm.get("merge_prompt", "") or DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT))
         self.char_mem_profile_prompt_textbox.setPlainText(str(cm.get("profile_update_prompt", "") or DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT))
 
     def apply_detection_to_ui(self) -> None:
@@ -1527,6 +1590,7 @@ class GameMasterGUI(QMainWindow):
         character_memory["auto_debounce_seconds"] = float(self.char_mem_auto_debounce_entry.value())
         character_memory["max_memory_entries"] = int(self.char_mem_max_memory_entries_entry.value())
         character_memory["summary_prompt"] = plain_text(self.char_mem_summary_prompt_textbox).strip() or DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT
+        character_memory["merge_prompt"] = plain_text(self.char_mem_merge_prompt_textbox).strip() or DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT
         character_memory["profile_update_prompt"] = plain_text(self.char_mem_profile_prompt_textbox).strip() or DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT
 
         cfg["llm_logging"] = {

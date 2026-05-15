@@ -32,29 +32,40 @@ logger = logging.getLogger(__name__)
 
 MEMORY_RE = re.compile(r"^\s*MEMORY\s*(\d+)\s*:\s*(.*)$", re.IGNORECASE | re.DOTALL)
 DEFAULT_CHARACTER_SUMMARY_PROMPT = (
-    "You are compressing a character's conversation history for long-term game memory. "
-    "Summarize only the provided conversation lines. Preserve concrete facts, promises, threats, favors, secrets, "
-    "relationships, conflicts, names, places, titles, allegiances, emotional shifts, debts, bargains, and information "
-    "the character learned from or about the player. Preserve the character's attitude toward the player and any "
-    "changes in trust, suspicion, respect, fear, anger, loyalty, or obligation. Do not invent events, motives, names, "
-    "titles, or relationships. Do not contradict existing memory. Do not include trivial greetings, repeated phrasing, "
-    "or generic banter unless it changed the relationship or revealed useful information. Write one concise paragraph "
-    "in past tense. The paragraph must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, "
-    "bullets, headings, or JSON."
+    "You are compressing a character's conversation history for long-term game memory.\n\n"
+    "Summarize only the provided conversation lines.\n\n"
+    "Preserve:\n"
+    "- Concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, and allegiances.\n"
+    "- Emotional shifts, debts, bargains, and information the character learned from or about the player.\n"
+    "- The character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation.\n\n"
+    "Do not invent events, motives, names, titles, or relationships.\n"
+    "Do not contradict existing memory.\n"
+    "Do not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\n\n"
+    "Write 1-2 short paragraphs in past tense. The paragraphs must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON."
+)
+
+DEFAULT_MEMORY_MERGE_PROMPT = (
+    "Consolidate the provided MEMORY entries for one game character into one concise long-term memory paragraph suitable for a MEMORY entry in ConversationHistory.\n\n"
+    "Preserve durable facts, names, places, titles, factions, relationships, promises, threats, secrets, debts, conflicts, favors, and changed attitudes toward the player.\n"
+    "Preserve the character's latest known attitude and relationship state.\n"
+    "When older and newer entries conflict, prefer the newest or most specific information.\n\n"
+    "Remove repetition and trivial details.\n"
+    "Do not invent anything.\n"
+    "Do not use markdown, bullets, headings, labels, or JSON."
 )
 
 DEFAULT_PROFILE_UPDATE_PROMPT = (
-    "You are conservatively updating a game character profile using conversation history. "
-    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful "
-    "information that should affect future roleplay. Examples include new relationships, loyalties, grudges, debts, "
-    "promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the "
-    "player. Do not rewrite the character into a different person. Preserve their established temperament, social status, "
-    "history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual "
-    "change. Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a "
-    "lifelong enemy into a friend without strong evidence. Prefer small additive edits over broad rewrites. Keep the "
-    "existing structure and style where possible. If no meaningful durable change is needed, return changed=false. "
-    "Return strict JSON only with this shape: {\"changed\": true or false, \"new_personality\": string or null, "
-    "\"new_backstory\": string or null, \"reason\": string, \"confidence\": \"low\" | \"medium\" | \"high\"}."
+    "You are conservatively updating a game character profile using conversation history.\n\n"
+    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay.\n\n"
+    "Examples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player.\n\n"
+    "Do not rewrite the character into a different person.\n"
+    "Preserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change.\n"
+    "Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence.\n"
+    "Prefer small additive edits over broad rewrites.\n"
+    "Keep the existing structure and style where possible.\n\n"
+    "If no meaningful durable change is needed, return changed=false.\n\n"
+    "Return strict JSON only with this shape:\n"
+    "{\"changed\": true or false, \"new_personality\": string or null, \"new_backstory\": string or null, \"reason\": string, \"confidence\": \"low\" | \"medium\" | \"high\"}."
 )
 
 
@@ -470,11 +481,7 @@ class CharacterMemoryManager:
         return self._chat_completion(prompt, user)
 
     def _call_memory_compaction_llm(self, data: Dict[str, Any], memory_lines: List[str]) -> str:
-        prompt = (
-            "Consolidate the provided MEMORY entries for one game character into one concise long-term memory paragraph. "
-            "Preserve durable facts, relationship changes, promises, threats, secrets, debts, conflicts, and changed attitudes. "
-            "Do not invent anything. Do not use markdown, bullets, headings, or JSON."
-        )
+        prompt = str(getattr(self.settings, "character_memory_merge_prompt", "") or DEFAULT_MEMORY_MERGE_PROMPT)
         user = (
             f"Character: {data.get('Name') or 'Unknown'}\n"
             f"StringId: {data.get('StringId') or ''}\n\n"

@@ -17,60 +17,79 @@ REQUEST_PARAMETER_NAMES = ("temperature", "top_p", "top_k")
 
 
 DEFAULT_SELECTOR_INSTRUCTION = (
-    'You are a proxy-side selector. '
-    'Use the provided request context and candidate indexed entries to decide which candidate entry IDs should be kept. '
-    'Resolve implication, pronouns, vague references, allegiance, location, recent dialogue, speaker identity, and relevant social context. '
-    'Select from the provided candidates only. Never rewrite, summarize, or invent content. '
-    'When uncertain, prefer keeping slightly too much over omitting needed context. '
-    'Return strict JSON only in this shape: {"blocks":[{"block_id":"block_1","keep_ids":["id1","id2"]}]}.'
+    "You are an AI memory-filtering module for a roleplaying game. Your sole purpose is to select relevant lore and knowledge entries so an NPC can accurately respond to a Player.\n\n"
+    "You will receive an input containing:\n"
+    "1. CONTEXT EXTRACTS: The NPC's identity and background.\n"
+    "2. Conversation History: The recent dialogue between the Player and the NPC.\n"
+    "3. CANDIDATE INDEXED ENTRIES: A list of knowledge sections, each with an 'id', 'title', and 'Summary'.\n\n"
+    "Instructions:\n"
+    "1. Analyze the Player's most recent message(s) in the Conversation History.\n"
+    "2. Read the Summary of each candidate entry.\n"
+    "3. Determine if the Summary contains information the NPC realistically needs to know to formulate a coherent, contextually accurate reply to the Player.\n"
+    "4. Extract the exact string from the `id` attribute (e.g., \"s001\", \"block_1\") of any relevant <SECTION> or <BLOCK>.\n\n"
+    "Output Formatting Rules (CRITICAL):\n"
+    "You must output strictly valid JSON and nothing else.\n"
+    "- DO NOT wrap the output in markdown code blocks (e.g., no ```json or ```).\n"
+    "- DO NOT include any conversational text, reasoning, greetings, or explanations.\n"
+    "- DO NOT output anything outside of the JSON object.\n\n"
+    "Your output must exactly match this schema:\n"
+    "{\"blocks\":[{\"block_id\":\"block_1\",\"keep_ids\":[\"id1\",\"id2\"]}]}"
 )
 
 DEFAULT_FILTERING_MODE = "selector"
 
 
 DEFAULT_SUMMARY_INSTRUCTION = (
-    'You are summarizing one indexed text entry so another AI can later decide whether this entry is relevant to a request. '
-    'Return only one concise paragraph, ideally 45-80 words. '
-    "Preserve the entry's core meaning, important details, constraints, context, terms that may be useful for matching, "
-    'and any details that would change when the full entry should or should not be included. '
-    'Do not invent, generalize beyond the text, or add outside knowledge. Do not mention that this is a summary. '
-    'Do not use markdown, bullets, headings, or labels unless they are necessary to preserve meaning. '
-    'Compress aggressively, but keep enough concrete detail that the later AI can reliably decide whether the full entry should be included.'
+    "You are an expert data compressor.\n\n"
+    "Your task is to condense detailed information into ultra-concise, telegraphic summaries with an intent to reduce input-token usage for keyword database retrieval.\n\n"
+    "Rules for Summarization:\n"
+    "- No filler: Remove articles (a, an, the), flowery language, and full sentences.\n"
+    "- Telegraphic style: Use slashes (/), semicolons (;), and commas to string together concepts tightly.\n"
+    "- Prioritize the unique: Keep highly specific details and drop generic lore.\n"
+    "- Use keywords, not sentences.\n"
+    "- Format: [Name]: [Core Identity]. [Key details/customs/taboos]."
 )
 DEFAULT_STATIC_GM_INDEX_FILES = [
     "world.txt",
     "actionrules.txt",
-    "battlecombatrules.txt",
-    "eventsanalyzerrules.txt",
-    "eventsgeneratorrules.txt",
-    "kingdomstatementrules.txt",
 ]
 
 
 DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT = (
-    "You are compressing a character's conversation history for long-term game memory. "
-    "Summarize only the provided conversation lines. Preserve concrete facts, promises, threats, favors, secrets, "
-    "relationships, conflicts, names, places, titles, allegiances, emotional shifts, debts, bargains, and information "
-    "the character learned from or about the player. Preserve the character's attitude toward the player and any "
-    "changes in trust, suspicion, respect, fear, anger, loyalty, or obligation. Do not invent events, motives, names, "
-    "titles, or relationships. Do not contradict existing memory. Do not include trivial greetings, repeated phrasing, "
-    "or generic banter unless it changed the relationship or revealed useful information. Write one concise paragraph "
-    "in past tense. The paragraph must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, "
-    "bullets, headings, or JSON."
+    "You are compressing a character's conversation history for long-term game memory.\n\n"
+    "Summarize only the provided conversation lines.\n\n"
+    "Preserve:\n"
+    "- Concrete facts, promises, threats, favors, secrets, relationships, conflicts, names, places, titles, and allegiances.\n"
+    "- Emotional shifts, debts, bargains, and information the character learned from or about the player.\n"
+    "- The character's attitude toward the player and any changes in trust, suspicion, respect, fear, anger, loyalty, or obligation.\n\n"
+    "Do not invent events, motives, names, titles, or relationships.\n"
+    "Do not contradict existing memory.\n"
+    "Do not include trivial greetings, repeated phrasing, or generic banter unless it changed the relationship or revealed useful information.\n\n"
+    "Write 1-2 short paragraphs in past tense. The paragraphs must be usable as a MEMORY entry inside ConversationHistory. Do not use markdown, bullets, headings, or JSON."
+)
+
+DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT = (
+    "Consolidate the provided MEMORY entries for one game character into one concise long-term memory paragraph suitable for a MEMORY entry in ConversationHistory.\n\n"
+    "Preserve durable facts, names, places, titles, factions, relationships, promises, threats, secrets, debts, conflicts, favors, and changed attitudes toward the player.\n"
+    "Preserve the character's latest known attitude and relationship state.\n"
+    "When older and newer entries conflict, prefer the newest or most specific information.\n\n"
+    "Remove repetition and trivial details.\n"
+    "Do not invent anything.\n"
+    "Do not use markdown, bullets, headings, labels, or JSON."
 )
 
 DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT = (
-    "You are conservatively updating a game character profile using conversation history. "
-    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful "
-    "information that should affect future roleplay. Examples include new relationships, loyalties, grudges, debts, "
-    "promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the "
-    "player. Do not rewrite the character into a different person. Preserve their established temperament, social status, "
-    "history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual "
-    "change. Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a "
-    "lifelong enemy into a friend without strong evidence. Prefer small additive edits over broad rewrites. Keep the "
-    "existing structure and style where possible. If no meaningful durable change is needed, return changed=false. "
-    'Return strict JSON only with this shape: {"changed": true or false, "new_personality": string or null, '
-    '"new_backstory": string or null, "reason": string, "confidence": "low" | "medium" | "high"}.'
+    "You are conservatively updating a game character profile using conversation history.\n\n"
+    "You may update the character's personality or backstory only when the conversation reveals durable, meaningful information that should affect future roleplay.\n\n"
+    "Examples include new relationships, loyalties, grudges, debts, promises, losses, family news, imprisonment, release, betrayal, alliance, fear, respect, or changed opinion of the player.\n\n"
+    "Do not rewrite the character into a different person.\n"
+    "Preserve their established temperament, social status, history, culture, speech style, values, and contradictions unless the conversation gives strong evidence of gradual change.\n"
+    "Do not turn a cruel character kind, a cynical character trusting, a noble-born character lowborn, or a lifelong enemy into a friend without strong evidence.\n"
+    "Prefer small additive edits over broad rewrites.\n"
+    "Keep the existing structure and style where possible.\n\n"
+    "If no meaningful durable change is needed, return changed=false.\n\n"
+    "Return strict JSON only with this shape:\n"
+    '{"changed": true or false, "new_personality": string or null, "new_backstory": string or null, "reason": string, "confidence": "low" | "medium" | "high"}.'
 )
 
 
@@ -82,42 +101,42 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
     """Default marker-based extracts sent to the selector model."""
     return [
         {
-            "name": "Character Briefing Context",
+            "name": "Character Briefing (CURRENT DATA)",
             "request_types": ["dialogue"],
             "beginning": "### Character Briefing (CURRENT DATA) ###",
             "end": "**Description:**",
-            "include_beginning_marker": True,
+            "include_beginning_marker": False,
             "include_end_marker": False,
         },
         {
-            "name": "Conversation History Context",
+            "name": "### Conversation History ###",
             "request_types": ["dialogue"],
             "beginning": "### Conversation History ###",
             "end": "Last Interaction:",
-            "include_beginning_marker": True,
+            "include_beginning_marker": False,
             "include_end_marker": False,
         },
     ]
 
 
 DYNAMIC_HIDE_UNTIL_RELEVANT_DEFAULTS: Dict[str, bool] = {
-    "character_briefing": True,
-    "player_current_data": True,
-    "people_present": True,
-    "nearby_settlements": True,
-    "nearby_parties": True,
-    "mentioned_settlements": True,
-    "mentioned_characters": True,
-    "mentioned_parties": True,
-    "appearance_equipment": True,
-    "wealth_money": True,
-    "inventory_items": True,
-    "clan": True,
-    "family_relatives": True,
-    "relations": True,
-    "forces": True,
-    "captives": True,
-    "workshops": True,
+    "character_briefing": False,
+    "player_current_data": False,
+    "people_present": False,
+    "nearby_settlements": False,
+    "nearby_parties": False,
+    "mentioned_settlements": False,
+    "mentioned_characters": False,
+    "mentioned_parties": False,
+    "appearance_equipment": False,
+    "wealth_money": False,
+    "inventory_items": False,
+    "clan": False,
+    "family_relatives": False,
+    "relations": False,
+    "forces": False,
+    "captives": False,
+    "workshops": False,
 }
 
 
@@ -192,7 +211,8 @@ class Settings:
     # Request type detection. These signatures are checked against the intercepted prompt text.
     request_type_signatures: Dict[str, List[str]] = field(default_factory=lambda: {
         "dialogue": [
-            "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown."
+            "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
+            "## Group Participants Present:",
         ],
         "events": [
             "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
@@ -203,15 +223,15 @@ class Settings:
     })
 
     # GM filtering
-    max_event_history: int = 20
-    dialogue_history_size: int = 5
+    max_event_history: int = 200
+    dialogue_history_size: int = 200
     dynamic_filter_enabled: bool = True
     fuzzy_match_threshold: float = 0.88
-    max_people_present: int = 8
-    max_nearby_settlements: int = 8
-    max_nearby_parties: int = 8
-    max_inventory_lines: int = 8
-    max_event_dialogue_messages: int = 14
+    max_people_present: int = 10
+    max_nearby_settlements: int = 7
+    max_nearby_parties: int = 5
+    max_inventory_lines: int = 5
+    max_event_dialogue_messages: int = 20
     max_event_dialogue_settlements: int = 10
     dynamic_hide_until_relevant: Dict[str, bool] = field(default_factory=default_dynamic_hide_until_relevant)
     prompt_drop_rules: List[Dict[str, Any]] = field(default_factory=list)
@@ -238,7 +258,7 @@ class Settings:
     selector_api_key: str = ""
     selector_model: str = ""
     selector_temperature: float = 0.0
-    selector_max_tokens: int = 1200
+    selector_max_tokens: int = 32000
     selector_timeout_seconds: float = 120.0
     selector_instruction: str = DEFAULT_SELECTOR_INSTRUCTION
     selector_context_rules: List[Dict[str, Any]] = field(default_factory=default_selector_context_rules)
@@ -274,15 +294,16 @@ class Settings:
     character_memory_api_key: str = ""
     character_memory_model: str = ""
     character_memory_temperature: float = 0.1
-    character_memory_max_tokens: int = 700
+    character_memory_max_tokens: int = 32000
     character_memory_timeout_seconds: float = 180.0
-    character_memory_preserve_last_lines: int = 10
+    character_memory_preserve_last_lines: int = 20
     character_memory_auto_enabled: bool = False
-    character_memory_auto_trigger_raw_lines: int = 16
+    character_memory_auto_trigger_raw_lines: int = 30
     character_memory_auto_scan_interval_seconds: float = 30.0
     character_memory_auto_debounce_seconds: float = 8.0
     character_memory_max_memory_entries: int = 5
     character_memory_summary_prompt: str = DEFAULT_CHARACTER_MEMORY_SUMMARY_PROMPT
+    character_memory_merge_prompt: str = DEFAULT_CHARACTER_MEMORY_MERGE_PROMPT
     character_memory_profile_update_prompt: str = DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT
 
     # GUI-only settings.
@@ -447,6 +468,7 @@ class Settings:
                 self.character_memory_auto_debounce_seconds = float(cm.get('auto_debounce_seconds', self.character_memory_auto_debounce_seconds))
                 self.character_memory_max_memory_entries = int(cm.get('max_memory_entries', self.character_memory_max_memory_entries))
                 self.character_memory_summary_prompt = str(cm.get('summary_prompt', self.character_memory_summary_prompt) or self.character_memory_summary_prompt)
+                self.character_memory_merge_prompt = str(cm.get('merge_prompt', self.character_memory_merge_prompt) or self.character_memory_merge_prompt)
                 self.character_memory_profile_update_prompt = str(cm.get('profile_update_prompt', self.character_memory_profile_update_prompt) or self.character_memory_profile_update_prompt)
 
             # Top-level prompt_drop_rules / prompt_replace_rules are also supported for readability.
@@ -632,6 +654,7 @@ class Settings:
                 'auto_debounce_seconds': self.character_memory_auto_debounce_seconds,
                 'max_memory_entries': self.character_memory_max_memory_entries,
                 'summary_prompt': self.character_memory_summary_prompt,
+                'merge_prompt': self.character_memory_merge_prompt,
                 'profile_update_prompt': self.character_memory_profile_update_prompt,
             },
             'selector': {

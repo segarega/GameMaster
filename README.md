@@ -55,7 +55,7 @@ GameMaster sits between AI Influence and your LLM provider. It trims the prompt,
 
 - 🎮 **Built for AI Influence** — understands the prompt structure used by the Bannerlord mod.
 - 🤖 **Dual-stage prompting** — a Selector LLM chooses relevant `[GM]` content before the main LLM request.
-- 📚 **Static GM Index** — indexes `[GM]` entries from files such as `world.txt`, `actionrules.txt`, and `battlecombatrules.txt`.
+- 📚 **Static GM Index** — indexes `[GM]` entries from files such as `world.txt` and `actionrules.txt`.
 - 🧠 **Character Memory compression** — summarizes old conversation history into compact `MEMORY` entries.
 - 📝 **Prompt rules engine** — drop, replace, and extract prompt sections using marker-based rules.
 - 🔌 **OpenAI-compatible** — works with OpenAI, OpenRouter, NanoGPT, LM Studio, KoboldCPP, text-generation-webui, and similar `/chat/completions` providers.
@@ -333,17 +333,17 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 |---|---|
 | **Enable dynamic GM filtering** | Master switch. When disabled, prompts pass through mostly unmodified, apart from policy-header logic. |
 | **Fuzzy match threshold** | `0.0`–`1.0`. Higher values make dynamic relevance matching stricter for `Hide-Until-Relevant Controls`. Default: `0.88`. |
-| **Max event history** | Maximum historical events kept in the prompt. Default: `50`. |
-| **Dialogue history size** | Recent dialogue exchanges kept. Default: `15`. |
-| **Events — max dialogue lines** | Caps embedded dialogue excerpts in event requests. Default: `15`. |
-| **Events — max settlements mentioned** | Caps settlement references in event prompts. Default: `15`. |
+| **Max event history** | Maximum historical events kept in the prompt. Default: `200`. |
+| **Dialogue history size** | Recent dialogue exchanges kept. Default: `200`. |
+| **Events — max dialogue lines** | Caps embedded dialogue excerpts in event requests. Default: `20`. |
+| **Events — max settlements mentioned** | Caps settlement references in event prompts. Default: `10`. |
 
 #### Dynamic context limits
 
 | Setting | Description |
 |---|---|
-| **Max people present** | Maximum NPCs listed in the current location. Default: `5`. |
-| **Max nearby settlements** | Maximum settlement descriptions. Default: `5`. |
+| **Max people present** | Maximum NPCs listed in the current location. Default: `10`. |
+| **Max nearby settlements** | Maximum settlement descriptions. Default: `7`. |
 | **Max nearby parties** | Maximum wandering party/warband descriptions. Default: `5`. |
 | **Max inventory lines** | Maximum inventory lines. Default: `5`. |
 
@@ -351,23 +351,23 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 
 | Setting | Description |
 |---|---|
-| **Character Briefing (CURRENT DATA)** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **The Player Current Data** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **People physically present** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Nearby settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Nearby parties** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Mentioned settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Mentioned characters** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Mentioned parties** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Appearance/equipment lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Wealth/money lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Inventory/item lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Clan line** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Family/relatives lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Relations/friends/enemies lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Forces/troops lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Captives/prisoners lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
-| **Workshop/business lines** | Show/Hide this section from request until relevant based on word similarity. Default: `enabled`. |
+| **Character Briefing (CURRENT DATA)** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **The Player Current Data** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **People physically present** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Nearby settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Nearby parties** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Mentioned settlements** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Mentioned characters** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Mentioned parties** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Appearance/equipment lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Wealth/money lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Inventory/item lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Clan line** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Family/relatives lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Relations/friends/enemies lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Forces/troops lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Captives/prisoners lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
+| **Workshop/business lines** | Show/Hide this section from request until relevant based on word similarity. Default: `disabled`. |
 
 ---
 
@@ -553,25 +553,26 @@ Over a long campaign, conversation history can become very large. GameMaster can
 | **API Key** | Defaults up the chain if blank. |
 | **Model** | Defaults up the chain if blank. |
 | **Temperature** | Default: `0.1` for factual summaries. |
-| **Max tokens** | Maximum summary length. Default: `700`. |
+| **Max tokens** | Maximum summary length. Default: `32000`. |
 | **Timeout seconds** | Maximum wait time. Default: `180`. |
 
 #### Conversation summarization
 
 | Setting | Description |
 |---|---|
-| **Preserve last raw lines** | Recent conversation lines to keep verbatim. Default: `10`. |
+| **Preserve last raw lines** | Recent conversation lines to keep verbatim. Default: `20`. |
 | **Auto mode** | Automatically scans and summarizes when conditions are met. |
-| **Auto trigger raw lines** | Triggers auto-summary when a character exceeds this many raw lines. Default: `16`. |
+| **Auto trigger raw lines** | Triggers auto-summary when a character exceeds this many raw lines. Default: `30`. |
 | **Auto scan interval** | How often to check campaign files. Default: `30` seconds. |
 | **Auto debounce** | Minimum time between auto-summary runs. Default: `8` seconds. |
-| **Max MEMORY entries** | Maximum `MEMORY1`, `MEMORY2`, etc. entries before merging. Default: `5`. |
+| **Merge MEMORY entries after** | Maximum `MEMORY1`, `MEMORY2`, etc. entries to keep before merging them into one consolidated memory. Default: `5`. |
 
 #### Prompts
 
 | Prompt | Purpose |
 |---|---|
 | **Conversation summary prompt** | Compresses old dialogue into a `MEMORY` paragraph. |
+| **Memory merge prompt** | Consolidates multiple `MEMORY` entries into one entry when the merge threshold is exceeded. |
 | **Personality / backstory update prompt** | Decides whether character `personality` or `backstory` fields should be updated based on evidence. |
 
 #### Actions
@@ -594,8 +595,8 @@ The **Log Viewer** tab shows live logs when enabled in the General tab.
 
 | Pane | Shows |
 |---|---|
-| **LLM Request/Response Log** | Main LLM requests and responses. |
-| **Selector Log** | Selector prompts, candidate lists, selected IDs, and raw JSON. |
+| **LLM Request/Response Log** | Main LLM requests and responses formatted according to the Pretty JSON setting. |
+| **Selector Log** | Selector prompts, candidate lists, selected IDs, and provider JSON formatted according to the Pretty JSON setting. |
 
 Auto-scroll behavior:
 
