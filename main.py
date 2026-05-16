@@ -486,6 +486,17 @@ def _looks_like_filterable_dialogue_system_prompt(text: str) -> bool:
     return len(haystack) >= 4000 and ai_heading_count >= 3
 
 
+def _has_prompt_policy_markers(text: str) -> bool:
+    """Return True when a message contains explicit GM/PINNED/IGNORE policy tags."""
+    if not isinstance(text, str):
+        return False
+    return bool(re.search(
+        r'\[(?:PINNED|PIN|GM|IGNORE|END\s+(?:PINNED|PIN|GM|IGNORE))(?::[A-Z0-9_ -]+)*\]',
+        text,
+        re.IGNORECASE,
+    ))
+
+
 def _approx_prompt_tokens(messages: List[Dict[str, Any]]) -> int:
     """Rough local estimate of prompt tokens for diagnostics."""
     chars = sum(len(_message_content_to_text(msg.get("content"))) for msg in messages)
@@ -981,8 +992,9 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
         # Apply GM filtering if enabled.
         # Dialogue: use the last user line as the selector query and filter each system message
         # in place. Untagged content stays; explicit [GM]/[PINNED]/[IGNORE] drive the changes.
-        # Events/diplomacy: filter the main user prompt in place; preset system prompts stay unless
-        # a caller explicitly tags them.
+        # Events/diplomacy: filter whichever message(s) actually contain explicit policy tags.
+        # Some providers place the huge AIInfluence world/rules payload in the system message,
+        # while the game-state task lives in the user message.
         if gm_filter_enabled and prompt_filter:
             logger.info(f"Applying GM filtering for {resolved_request_type} request")
             messages_to_send = [dict(msg) for msg in messages_dict]
@@ -993,6 +1005,7 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
                 "pinned_sections_included": 0,
             }
             target_roles: List[str] = []
+            filtered_target_indices: List[int] = []
 
             if resolved_request_type == "dialogue":
                 system_candidates = [
@@ -1013,20 +1026,39 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
                         system_candidates[-1],
                     )
             else:
-                user_indices = [
+                content_indices = [
                     i for i, msg in enumerate(messages_to_send)
-                    if msg.get("role") == "user" and msg.get("content") is not None
+                    if msg.get("role") in {"system", "user"} and msg.get("content") is not None
                 ]
-                system_indices = [
-                    i for i, msg in enumerate(messages_to_send)
-                    if msg.get("role") == "system" and msg.get("content") is not None
+                policy_tagged_indices = [
+                    i for i in content_indices
+                    if _has_prompt_policy_markers(
+                        _message_content_to_text(messages_to_send[i].get("content"))
+                    )
                 ]
-                if user_indices:
-                    target_indices = [user_indices[-1]]
-                elif system_indices:
-                    target_indices = [system_indices[-1]]
+                if policy_tagged_indices:
+                    target_indices = policy_tagged_indices
                 else:
-                    target_indices = [0] if messages_to_send else []
+                    user_indices = [
+                        i for i in content_indices
+                        if messages_to_send[i].get("role") == "user"
+                    ]
+                    system_indices = [
+                        i for i in content_indices
+                        if messages_to_send[i].get("role") == "system"
+                    ]
+                    if user_indices:
+                        target_indices = [user_indices[-1]]
+                    elif system_indices:
+                        target_indices = [system_indices[-1]]
+                    else:
+                        target_indices = [0] if messages_to_send else []
+                    logger.warning(
+                        "%s request had no explicit GM/PINNED/IGNORE markers in system/user messages; "
+                        "falling back to filtering message index/indices %s",
+                        resolved_request_type,
+                        target_indices,
+                    )
 
             for target_index in target_indices:
                 filtered = await prompt_filter.filter_prompt(
@@ -1041,6 +1073,7 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
                 stats_rollup["sections_included"] += filtered.sections_included
                 stats_rollup["pinned_sections_included"] += filtered.pinned_sections_included
                 target_roles.append(str(messages_to_send[target_index].get("role", "user")))
+                filtered_target_indices.append(target_index)
 
                 messages_to_send[target_index] = dict(messages_to_send[target_index])
                 rewritten_content = _build_filtered_content_preserving_shape(
@@ -1059,6 +1092,7 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
                 {
                     "request_type": resolved_request_type,
                     "target_roles": target_roles,
+                    "target_indices": filtered_target_indices,
                     "original_size": stats_rollup["original_size"],
                     "filtered_size": stats_rollup["filtered_size"],
                     "reduction_pct": reduction_pct,
