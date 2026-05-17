@@ -336,9 +336,10 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 | **Disable User's last message during Group Chat** | When enabled, dialogue requests containing `===== GROUP CONVERSATION MODE =====` have outbound `role: user` messages removed before sending to the main LLM. Use this when group conversations include a leftover user starter instruction that should not guide the NPC exchange. Default: `disabled`. |
 | **Fuzzy match threshold** | `0.0`–`1.0`. Higher values make dynamic relevance matching stricter for `Hide-Until-Relevant Controls`. Default: `0.88`. |
 | **Max event history** | Maximum historical events kept in the prompt. Default: `200`. |
-| **Dialogue history size** | Recent dialogue exchanges kept. Default: `200`. |
 | **Events — max dialogue lines** | Caps embedded dialogue excerpts in event requests. Default: `20`. |
 | **Events — max settlements mentioned** | Caps settlement references in event prompts. Default: `10`. |
+
+Dialogue history length is controlled by AI Influence's own dialogue history setting. GameMaster does not apply a second dialogue-history cap.
 
 #### Dynamic context limits
 

@@ -731,7 +731,6 @@ async def stats():
             "models": settings.models if settings else {},
             "gm_filtering": {
                 "max_event_history": settings.max_event_history,
-                "dialogue_history_size": settings.dialogue_history_size,
                 "dynamic_filter_enabled": settings.dynamic_filter_enabled,
                 "disable_user_last_message_during_npc_npc_conversation": settings.disable_user_last_message_during_npc_npc_conversation,
                 "disable_user_last_message_during_group_chat": settings.disable_user_last_message_during_group_chat,

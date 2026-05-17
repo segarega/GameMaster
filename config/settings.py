@@ -225,7 +225,6 @@ class Settings:
 
     # GM filtering
     max_event_history: int = 200
-    dialogue_history_size: int = 200
     dynamic_filter_enabled: bool = True
     disable_user_last_message_during_npc_npc_conversation: bool = False
     disable_user_last_message_during_group_chat: bool = False
@@ -416,7 +415,6 @@ class Settings:
             if gm_data:
                 gm = gm_data
                 self.max_event_history = int(gm.get('max_event_history', self.max_event_history))
-                self.dialogue_history_size = int(gm.get('dialogue_history_size', self.dialogue_history_size))
                 self.dynamic_filter_enabled = bool(gm.get('dynamic_filter_enabled', self.dynamic_filter_enabled))
                 self.disable_user_last_message_during_npc_npc_conversation = _bool_from_any(
                     gm.get(
@@ -544,7 +542,6 @@ class Settings:
             'GMR_CHARACTER_MEMORY_API_KEY': ('character_memory_api_key', str),
             'GMR_CHARACTER_MEMORY_MODEL': ('character_memory_model', str),
             'GMR_MAX_EVENT_HISTORY': ('max_event_history', int),
-            'GMR_DIALOGUE_HISTORY_SIZE': ('dialogue_history_size', int),
             'GMR_DYNAMIC_FILTER_ENABLED': ('dynamic_filter_enabled', lambda v: str(v).lower() in {'1','true','yes','on'}),
             'GMR_FUZZY_MATCH_THRESHOLD': ('fuzzy_match_threshold', float),
             'GMR_MAX_PEOPLE_PRESENT': ('max_people_present', int),
@@ -617,7 +614,6 @@ class Settings:
             },
             'gm': {
                 'max_event_history': self.max_event_history,
-                'dialogue_history_size': self.dialogue_history_size,
                 'dynamic_filter_enabled': self.dynamic_filter_enabled,
                 'disable_user_last_message_during_npc_npc_conversation': self.disable_user_last_message_during_npc_npc_conversation,
                 'disable_user_last_message_during_group_chat': self.disable_user_last_message_during_group_chat,

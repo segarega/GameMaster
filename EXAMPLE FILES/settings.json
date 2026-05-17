@@ -35,7 +35,6 @@
     "disable_user_last_message_during_npc_npc_conversation": false,
     "disable_user_last_message_during_group_chat": false,
     "max_event_history": 200,
-    "dialogue_history_size": 200,
     "fuzzy_match_threshold": 0.88,
     "max_people_present": 10,
     "max_nearby_settlements": 7,

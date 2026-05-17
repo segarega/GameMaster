@@ -134,7 +134,14 @@ DEFAULT_CHARACTER_MEMORY_PROFILE_PROMPT = (
     "Return strict JSON only with this shape:\n"
     '{"changed": true or false, "new_personality": string or null, "new_backstory": string or null, "reason": string, "confidence": "low" | "medium" | "high"}.'
 )
-HIDDEN_GM_FIELDS = {"max" + "_sections", "min" + "_similarity", "use" + "_rag", "rag" + "_enabled", "embedding" + "_model"}
+HIDDEN_GM_FIELDS = {
+    "max" + "_sections",
+    "min" + "_similarity",
+    "use" + "_rag",
+    "rag" + "_enabled",
+    "embedding" + "_model",
+    "dialogue" + "_history" + "_size",
+}
 
 DEFAULT_STATIC_GM_INDEX_FILES = [
     "world.txt",
@@ -146,7 +153,6 @@ KNOWN_GM_FIELDS: Dict[str, Tuple[str, str, Any, Any]] = {
     "disable_user_last_message_during_npc_npc_conversation": ("Disable User's last message during NPC-NPC conversation", "bool", None, False),
     "disable_user_last_message_during_group_chat": ("Disable User's last message during Group Chat", "bool", None, False),
     "max_event_history": ("Max event history", "int", (0, 1000), 200),
-    "dialogue_history_size": ("Dialogue history size", "int", (0, 500), 200),
     "fuzzy_match_threshold": ("Dynamic data fuzzy match threshold", "float", (0.0, 1.0), 0.88),
     "max_people_present": ("Max people present", "int", (0, 500), 10),
     "max_nearby_settlements": ("Max nearby settlements", "int", (0, 500), 7),
@@ -872,7 +878,6 @@ class GameMasterGUI(QMainWindow):
             "disable_user_last_message_during_group_chat",
             "fuzzy_match_threshold",
             "max_event_history",
-            "dialogue_history_size",
             "max_event_dialogue_messages",
             "max_event_dialogue_settlements",
         ):

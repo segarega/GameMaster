@@ -154,7 +154,6 @@ class PromptFilter:
 
         # Wired to settings.json.
         self.MAX_EVENT_HISTORY = settings.max_event_history
-        self.DIALOGUE_HISTORY_SIZE = settings.dialogue_history_size
         self.dynamic_filter_enabled = getattr(settings, "dynamic_filter_enabled", True)
         self.fuzzy_match_threshold = float(getattr(settings, "fuzzy_match_threshold", 0.88))
         self.max_people_present = int(getattr(settings, "max_people_present", 8))
@@ -1515,7 +1514,7 @@ class PromptFilter:
         if title == 'mentioned parties':
             return self._filter_nearby_list(raw, focus_text, kind='party', section_key='mentioned_parties')
         if title == 'conversation history':
-            return self._filter_plain_conversation_history(raw)
+            return raw.strip()
 
         # Event/diplomacy prompt sections.
         if title in {'current world data ground truth', 'current world state'}:
@@ -1711,10 +1710,9 @@ class PromptFilter:
             filtered_history = self._filter_event_history(event_history, entities)
             filtered_content['event_history'] = json.dumps(filtered_history, indent=2, ensure_ascii=False)
 
-        # 6. Dialogue/conversation history from system prompt: preserve latest N whole entries.
-        if dialogue_history and self.DIALOGUE_HISTORY_SIZE > 0:
-            preserved_dialogue = dialogue_history[-self.DIALOGUE_HISTORY_SIZE:]
-            filtered_content['dialogue_history'] = json.dumps(preserved_dialogue, indent=2, ensure_ascii=False)
+        # 6. Dialogue/conversation history from system prompt: preserve AI Influence's capped history.
+        if dialogue_history:
+            filtered_content['dialogue_history'] = json.dumps(dialogue_history, indent=2, ensure_ascii=False)
 
         # 7. AIInfluence hardcoded prompt sections. The mod cannot be edited, so the proxy
         # parses its emitted markdown-ish sections into complete pseudo-sections.
@@ -2179,12 +2177,9 @@ class PromptFilter:
         )
         return re.sub(r'\n{3,}', '\n\n', result).strip()
 
-    def _clip_selector_context(self, text: str, limit: int = 3000) -> str:
-        """Keep selector context bounded so candidate summaries dominate the request."""
-        cleaned = re.sub(r'\s+', ' ', str(text or '')).strip()
-        if len(cleaned) <= limit:
-            return cleaned
-        return cleaned[: max(0, limit - 3)].rstrip() + '...'
+    def _clip_selector_context(self, text: str) -> str:
+        """Normalize selector context without truncating context-rule extracts."""
+        return re.sub(r'\s+', ' ', str(text or '')).strip()
 
     def _clip_selector_summary(self, text: str, limit: int = 700) -> str:
         """Hard cap per-candidate summary text sent to the selector."""
@@ -2583,10 +2578,10 @@ class PromptFilter:
         if current_data:
             filtered['ai_current_data'] = '\n\n'.join(current_data)
 
-        # Dialogue prompt: conversation history. Keep last N whole speaker/metadata lines.
+        # Dialogue prompt: conversation history. AI Influence already applies the history cap.
         conversation = []
         for raw in by_title.get('conversation history', []):
-            slim = self._filter_plain_conversation_history(raw)
+            slim = raw.strip()
             if slim:
                 conversation.append(slim)
                 relevance_parts.extend(self._extract_relevance_lines(slim))
@@ -3394,21 +3389,6 @@ class PromptFilter:
                 lines.append(stripped)
         # Keep complete lines, but cap the number of relevance lines so selector matching is not polluted.
         return lines[:80]
-
-    def _filter_plain_conversation_history(self, raw: str) -> str:
-        """Keep the last N whole dialogue-history lines from an AIInfluence conversation section."""
-        lines = [line for line in raw.splitlines() if line.strip()]
-        if not lines:
-            return ''
-        header = lines[0]
-        body = lines[1:]
-        if self.DIALOGUE_HISTORY_SIZE <= 0:
-            return header
-        speaker_re = re.compile(r'^\s*(Player|[^:]{1,80}):')
-        meta_re = re.compile(r'^\s*(Last Interaction|Previous Response|NPC|Character|System):', re.IGNORECASE)
-        entries = [line for line in body if speaker_re.match(line) or meta_re.match(line)]
-        selected = entries[-self.DIALOGUE_HISTORY_SIZE:] if entries else body[-self.DIALOGUE_HISTORY_SIZE:]
-        return '\n'.join([header] + selected)
 
     def _filter_bulleted_entries(self, raw: str, max_entries: int) -> str:
         """Keep the last N complete bullet/list entries from a section."""
