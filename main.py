@@ -62,7 +62,9 @@ runtime_lock: asyncio.Lock = asyncio.Lock()
 
 DEFAULT_REQUEST_TYPE_SIGNATURES: Dict[str, List[str]] = {
     "dialogue": [
-        "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown."
+        "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
+        "===== GROUP CONVERSATION MODE =====",
+        "===== NPC-TO-NPC CONVERSATION MODE =====",
     ],
     "events": [
         "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
@@ -72,6 +74,8 @@ DEFAULT_REQUEST_TYPE_SIGNATURES: Dict[str, List[str]] = {
     ],
 }
 DEFAULT_REQUEST_TYPE_PRIORITY: List[str] = ["diplomacy", "events", "dialogue"]
+NPC_TO_NPC_CONVERSATION_MARKER = "===== NPC-TO-NPC CONVERSATION MODE ====="
+GROUP_CONVERSATION_MARKER = "===== GROUP CONVERSATION MODE ====="
 
 
 def _json_for_log(value: Any) -> str:
@@ -503,6 +507,57 @@ def _approx_prompt_tokens(messages: List[Dict[str, Any]]) -> int:
     return chars // 4
 
 
+def _contains_npc_to_npc_conversation_marker(messages: List[Dict[str, Any]]) -> bool:
+    """Return True when the intercepted request is AIInfluence NPC-to-NPC mode."""
+    return any(
+        NPC_TO_NPC_CONVERSATION_MARKER in _message_content_to_text(msg.get("content"))
+        for msg in messages
+    )
+
+
+def _contains_group_conversation_marker(messages: List[Dict[str, Any]]) -> bool:
+    """Return True when the intercepted request is AIInfluence group conversation mode."""
+    return any(
+        GROUP_CONVERSATION_MARKER in _message_content_to_text(msg.get("content"))
+        for msg in messages
+    )
+
+
+def _strip_user_messages_for_special_dialogue_modes_if_enabled(
+    messages: List[Dict[str, Any]],
+    npc_to_npc_marker_present: bool,
+    group_marker_present: bool,
+) -> List[Dict[str, Any]]:
+    """Optionally remove user-role messages from special AIInfluence dialogue modes."""
+    if not settings:
+        return messages
+
+    active_modes: List[str] = []
+    if (
+        bool(getattr(settings, "disable_user_last_message_during_npc_npc_conversation", False))
+        and npc_to_npc_marker_present
+    ):
+        active_modes.append("NPC-to-NPC conversation")
+    if (
+        bool(getattr(settings, "disable_user_last_message_during_group_chat", False))
+        and group_marker_present
+    ):
+        active_modes.append("group chat")
+
+    if not active_modes:
+        return messages
+
+    stripped = [msg for msg in messages if msg.get("role") != "user"]
+    removed = len(messages) - len(stripped)
+    if removed:
+        logger.info(
+            "%s mode detected; removed %d user message(s) from outbound request",
+            " and ".join(active_modes),
+            removed,
+        )
+    return stripped
+
+
 def _summarize_messages_for_log(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Compact per-message diagnostics for the outbound payload."""
     summary: List[Dict[str, Any]] = []
@@ -678,6 +733,8 @@ async def stats():
                 "max_event_history": settings.max_event_history,
                 "dialogue_history_size": settings.dialogue_history_size,
                 "dynamic_filter_enabled": settings.dynamic_filter_enabled,
+                "disable_user_last_message_during_npc_npc_conversation": settings.disable_user_last_message_during_npc_npc_conversation,
+                "disable_user_last_message_during_group_chat": settings.disable_user_last_message_during_group_chat,
                 "fuzzy_match_threshold": settings.fuzzy_match_threshold,
                 "max_people_present": settings.max_people_present,
                 "max_nearby_settlements": settings.max_nearby_settlements,
@@ -981,6 +1038,8 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
     try:
         # Convert messages to dict format
         messages_dict = [msg.model_dump(exclude_none=True) for msg in request.messages]
+        npc_to_npc_marker_present = _contains_npc_to_npc_conversation_marker(messages_dict)
+        group_marker_present = _contains_group_conversation_marker(messages_dict)
         resolved_request_type = detect_request_type_from_prompt(messages_dict, request.request_type)
         logger.info(
             "Resolved request_type=%s (hint=%s)",
@@ -1107,6 +1166,11 @@ async def _chat_completions_impl(request: ChatCompletionRequest):
         # Add optional configured system prompts after prompt-container filtering, so they cannot
         # be selected as filter targets or confuse request-type detection.
         messages_to_send = _inject_configured_system_prompts(messages_to_send, resolved_request_type)
+        messages_to_send = _strip_user_messages_for_special_dialogue_modes_if_enabled(
+            messages_to_send,
+            npc_to_npc_marker_present,
+            group_marker_present,
+        )
 
         # Build request for backend. Preserve provider/model-specific extra fields
         # such as tools, response_format, seed, transforms, route, etc.

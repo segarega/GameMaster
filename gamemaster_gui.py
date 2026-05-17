@@ -143,6 +143,8 @@ DEFAULT_STATIC_GM_INDEX_FILES = [
 
 KNOWN_GM_FIELDS: Dict[str, Tuple[str, str, Any, Any]] = {
     "dynamic_filter_enabled": ("Enable dynamic GM filtering", "bool", None, True),
+    "disable_user_last_message_during_npc_npc_conversation": ("Disable User's last message during NPC-NPC conversation", "bool", None, False),
+    "disable_user_last_message_during_group_chat": ("Disable User's last message during Group Chat", "bool", None, False),
     "max_event_history": ("Max event history", "int", (0, 1000), 200),
     "dialogue_history_size": ("Dialogue history size", "int", (0, 500), 200),
     "fuzzy_match_threshold": ("Dynamic data fuzzy match threshold", "float", (0.0, 1.0), 0.88),
@@ -230,7 +232,8 @@ def default_request_type_detection() -> Dict[str, List[str]]:
     return {
         "dialogue": [
             "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
-            "## Group Participants Present:",
+            "===== GROUP CONVERSATION MODE =====",
+            "===== NPC-TO-NPC CONVERSATION MODE =====",
         ],
         "events": [
             "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data.",
@@ -865,6 +868,8 @@ class GameMasterGUI(QMainWindow):
         row = 0
         for key in (
             "dynamic_filter_enabled",
+            "disable_user_last_message_during_npc_npc_conversation",
+            "disable_user_last_message_during_group_chat",
             "fuzzy_match_threshold",
             "max_event_history",
             "dialogue_history_size",

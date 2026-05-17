@@ -17,7 +17,8 @@
   "request_type_detection": {
     "dialogue": [
       "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
-      "## Group Participants Present:"
+      "===== GROUP CONVERSATION MODE =====",
+      "===== NPC-TO-NPC CONVERSATION MODE ====="
     ],
     "events": [
       "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
@@ -31,6 +32,8 @@
   },
   "gm": {
     "dynamic_filter_enabled": true,
+    "disable_user_last_message_during_npc_npc_conversation": false,
+    "disable_user_last_message_during_group_chat": false,
     "max_event_history": 200,
     "dialogue_history_size": 200,
     "fuzzy_match_threshold": 0.88,

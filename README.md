@@ -332,6 +332,8 @@ The **GM Filtering** tab controls dynamic prompt pruning before the Selector and
 | Setting | Description |
 |---|---|
 | **Enable dynamic GM filtering** | Master switch. When disabled, prompts pass through mostly unmodified, apart from policy-header logic. |
+| **Disable User's last message during NPC-NPC conversation** | When enabled, dialogue requests containing `===== NPC-TO-NPC CONVERSATION MODE =====` have outbound `role: user` messages removed before sending to the main LLM. This prevents the mod's starter instruction from making NPC-to-NPC exchanges restart repeatedly. Default: `disabled`. |
+| **Disable User's last message during Group Chat** | When enabled, dialogue requests containing `===== GROUP CONVERSATION MODE =====` have outbound `role: user` messages removed before sending to the main LLM. Use this when group conversations include a leftover user starter instruction that should not guide the NPC exchange. Default: `disabled`. |
 | **Fuzzy match threshold** | `0.0`–`1.0`. Higher values make dynamic relevance matching stricter for `Hide-Until-Relevant Controls`. Default: `0.88`. |
 | **Max event history** | Maximum historical events kept in the prompt. Default: `200`. |
 | **Dialogue history size** | Recent dialogue exchanges kept. Default: `200`. |
@@ -466,6 +468,8 @@ GameMaster uses detection to choose:
 |---|---|
 | **Request type** | `dialogue`, `events`, or `diplomacy`. |
 | **Detection string** | A substring that uniquely appears in that request type. Can be multi-line. |
+
+Default dialogue detection includes the standard mission prompt, `===== GROUP CONVERSATION MODE =====`, and `===== NPC-TO-NPC CONVERSATION MODE =====`, so group conversations and NPC-to-NPC conversations resolve as dialogue.
 
 > [!WARNING]
 > Do not change the defaults unless you have **dropped** or **replaced** the matching AI Influence prompt markers with GameMaster rules.

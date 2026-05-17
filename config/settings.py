@@ -212,7 +212,8 @@ class Settings:
     request_type_signatures: Dict[str, List[str]] = field(default_factory=lambda: {
         "dialogue": [
             "### Mission ###\nRole-play as a character in Mount & Blade II: Bannerlord. Use your personality, history, and context to inform responses. Output ONLY a valid JSON object with no extra text or markdown.",
-            "## Group Participants Present:",
+            "===== GROUP CONVERSATION MODE =====",
+            "===== NPC-TO-NPC CONVERSATION MODE =====",
         ],
         "events": [
             "## EVENT STRUCTURE:\nMUST include: 1) CAUSE (from data) 2) ACTION (decision taken) 3) CONSEQUENCE (future impact)\nPrefer DEVELOPING existing conflicts over new minor incidents. Return [] if insufficient data."
@@ -226,6 +227,8 @@ class Settings:
     max_event_history: int = 200
     dialogue_history_size: int = 200
     dynamic_filter_enabled: bool = True
+    disable_user_last_message_during_npc_npc_conversation: bool = False
+    disable_user_last_message_during_group_chat: bool = False
     fuzzy_match_threshold: float = 0.88
     max_people_present: int = 10
     max_nearby_settlements: int = 7
@@ -415,6 +418,18 @@ class Settings:
                 self.max_event_history = int(gm.get('max_event_history', self.max_event_history))
                 self.dialogue_history_size = int(gm.get('dialogue_history_size', self.dialogue_history_size))
                 self.dynamic_filter_enabled = bool(gm.get('dynamic_filter_enabled', self.dynamic_filter_enabled))
+                self.disable_user_last_message_during_npc_npc_conversation = _bool_from_any(
+                    gm.get(
+                        'disable_user_last_message_during_npc_npc_conversation',
+                        self.disable_user_last_message_during_npc_npc_conversation,
+                    )
+                )
+                self.disable_user_last_message_during_group_chat = _bool_from_any(
+                    gm.get(
+                        'disable_user_last_message_during_group_chat',
+                        self.disable_user_last_message_during_group_chat,
+                    )
+                )
                 self.fuzzy_match_threshold = float(gm.get('fuzzy_match_threshold', self.fuzzy_match_threshold))
                 self.max_people_present = int(gm.get('max_people_present', self.max_people_present))
                 self.max_nearby_settlements = int(gm.get('max_nearby_settlements', self.max_nearby_settlements))
@@ -604,6 +619,8 @@ class Settings:
                 'max_event_history': self.max_event_history,
                 'dialogue_history_size': self.dialogue_history_size,
                 'dynamic_filter_enabled': self.dynamic_filter_enabled,
+                'disable_user_last_message_during_npc_npc_conversation': self.disable_user_last_message_during_npc_npc_conversation,
+                'disable_user_last_message_during_group_chat': self.disable_user_last_message_during_group_chat,
                 'fuzzy_match_threshold': self.fuzzy_match_threshold,
                 'max_people_present': self.max_people_present,
                 'max_nearby_settlements': self.max_nearby_settlements,
