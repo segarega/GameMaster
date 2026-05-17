@@ -2181,6 +2181,37 @@ class PromptFilter:
         """Normalize selector context without truncating context-rule extracts."""
         return re.sub(r'\s+', ' ', str(text or '')).strip()
 
+    def _selector_context_limit_enabled(self, rule: Dict[str, Any]) -> bool:
+        value = rule.get("limit_enabled", False)
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    def _apply_selector_context_limit(self, text: str, rule: Dict[str, Any]) -> str:
+        """Apply an optional per-context-rule character budget for selector-only context."""
+        if not self._selector_context_limit_enabled(rule):
+            return text
+        try:
+            limit_chars = int(rule.get("limit_chars", 0) or 0)
+        except Exception:
+            return text
+        if limit_chars <= 0 or len(text) <= limit_chars:
+            return text
+
+        position = str(rule.get("limit_position", "end") or "end").strip().lower()
+        position = position.replace(" ", "_").replace("-", "_")
+        if position in {"beginning", "start", "front"}:
+            return text[:limit_chars].rstrip() + "..."
+        if position in {"beginning_and_end", "both", "start_and_end"}:
+            head_chars = limit_chars // 2
+            tail_chars = limit_chars - head_chars
+            if head_chars <= 0:
+                return "..." + text[-tail_chars:].lstrip()
+            if tail_chars <= 0:
+                return text[:head_chars].rstrip() + "..."
+            return text[:head_chars].rstrip() + "..." + text[-tail_chars:].lstrip()
+        return "..." + text[-limit_chars:].lstrip()
+
     def _clip_selector_summary(self, text: str, limit: int = 700) -> str:
         """Hard cap per-candidate summary text sent to the selector."""
         cleaned = re.sub(r'\s+', ' ', str(text or '')).strip()
@@ -2224,6 +2255,7 @@ class PromptFilter:
                     break
             extracted = self._strip_policy_regions_from_selector_context(extracted)
             extracted = self._clip_selector_context(extracted)
+            extracted = self._apply_selector_context_limit(extracted, rule)
             if not extracted or extracted in seen:
                 continue
             seen.add(extracted)

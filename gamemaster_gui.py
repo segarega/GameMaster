@@ -66,6 +66,11 @@ except Exception as exc:  # pragma: no cover - runtime dependency message
 
 REQUEST_TYPES: Tuple[str, ...] = ("dialogue", "diplomacy", "events")
 REQUEST_PARAMETERS: Tuple[str, ...] = ("temperature", "top_p", "top_k")
+CONTEXT_LIMIT_POSITIONS: Tuple[Tuple[str, str], ...] = (
+    ("Beginning", "beginning"),
+    ("End", "end"),
+    ("Beginning and end", "beginning_and_end"),
+)
 
 DEFAULT_SELECTOR_INSTRUCTION = (
     "You are an AI memory-filtering module for a roleplaying game. Your sole purpose is to select relevant lore and knowledge entries so an NPC can accurately respond to a Player.\n\n"
@@ -259,6 +264,9 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
             "end": "**Description:**",
             "include_beginning_marker": False,
             "include_end_marker": False,
+            "limit_enabled": False,
+            "limit_chars": 5000,
+            "limit_position": "end",
         },
         {
             "name": "### Conversation History ###",
@@ -267,6 +275,9 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
             "end": "Last Interaction:",
             "include_beginning_marker": False,
             "include_end_marker": False,
+            "limit_enabled": False,
+            "limit_chars": 5000,
+            "limit_position": "end",
         },
     ]
 
@@ -1323,6 +1334,7 @@ class GameMasterGUI(QMainWindow):
             ("end", "text", "Context end marker"),
             ("include_beginning_marker", "bool", "Include beginning marker"),
             ("include_end_marker", "bool", "Include end marker"),
+            ("limit_enabled", "context_limit", "Limit output"),
         ]
 
     def build_rules_tab(self, rule_kind: str, title: str, schema: List[Tuple[str, str, str]]) -> QWidget:
@@ -1680,6 +1692,66 @@ class GameMasterGUI(QMainWindow):
                 if key in PROMPT_RULE_TEXT_KEYS and isinstance(value, str):
                     value = normalize_prompt_rule_text(value)
                     rule[key] = value
+                if field_type == "context_limit":
+                    enabled = QCheckBox("Preserve only")
+                    enabled.setChecked(text_to_bool(rule.get("limit_enabled", False)))
+                    try:
+                        limit_chars = max(1, int(rule.get("limit_chars", 5000) or 5000))
+                    except Exception:
+                        limit_chars = 5000
+                    chars = make_spin("int", limit_chars, (1, 1000000))
+                    position = QComboBox()
+                    for position_label, position_value in CONTEXT_LIMIT_POSITIONS:
+                        position.addItem(position_label, position_value)
+                    current_position = str(rule.get("limit_position", "end") or "end").strip().lower()
+                    current_position = current_position.replace(" ", "_").replace("-", "_")
+                    if current_position in {"start", "front"}:
+                        current_position = "beginning"
+                    elif current_position in {"both", "start_and_end"}:
+                        current_position = "beginning_and_end"
+                    position_index = next(
+                        (i for i in range(position.count()) if position.itemData(i) == current_position),
+                        1,
+                    )
+                    position.setCurrentIndex(position_index)
+
+                    row_widget = QWidget()
+                    row_layout = QHBoxLayout(row_widget)
+                    row_layout.setContentsMargins(0, 0, 0, 0)
+                    row_layout.setSpacing(8)
+                    row_layout.addWidget(enabled)
+                    row_layout.addWidget(chars)
+                    row_layout.addWidget(QLabel("characters from the"))
+                    row_layout.addWidget(position)
+                    row_layout.addWidget(QLabel("of extracted context"))
+                    row_layout.addStretch(1)
+
+                    def set_context_limit_enabled(
+                        checked: bool,
+                        *,
+                        r: Dict[str, Any] = rule,
+                        c: QSpinBox = chars,
+                        p: QComboBox = position,
+                    ) -> None:
+                        r["limit_enabled"] = bool(checked)
+                        c.setEnabled(bool(checked))
+                        p.setEnabled(bool(checked))
+
+                    enabled.toggled.connect(set_context_limit_enabled)
+                    chars.valueChanged.connect(lambda value, r=rule: r.__setitem__("limit_chars", int(value)))
+                    position.currentIndexChanged.connect(
+                        lambda _idx, r=rule, combo=position: r.__setitem__("limit_position", str(combo.currentData() or "end"))
+                    )
+                    set_context_limit_enabled(enabled.isChecked())
+                    rule["limit_chars"] = int(chars.value())
+                    rule["limit_position"] = str(position.currentData() or "end")
+
+                    rule_widgets["limit_enabled"] = enabled
+                    rule_widgets["limit_chars"] = chars
+                    rule_widgets["limit_position"] = position
+                    add_grid_row(grid, row, label, row_widget)
+                    row += 1
+                    continue
                 if field_type == "bool":
                     widget = QCheckBox()
                     widget.setChecked(text_to_bool(value if value is not None else True))
@@ -1718,6 +1790,10 @@ class GameMasterGUI(QMainWindow):
                 new_rule[key] = True
             elif field_type == "list":
                 new_rule[key] = []
+            elif field_type == "context_limit":
+                new_rule["limit_enabled"] = False
+                new_rule["limit_chars"] = 5000
+                new_rule["limit_position"] = "end"
             else:
                 new_rule[key] = ""
         rules.append(new_rule)
@@ -1806,7 +1882,18 @@ class GameMasterGUI(QMainWindow):
                 widget = widgets.get(key)
                 if widget is None:
                     continue
-                if field_type == "bool":
+                if field_type == "context_limit":
+                    enabled_widget = widgets.get("limit_enabled")
+                    chars_widget = widgets.get("limit_chars")
+                    position_widget = widgets.get("limit_position")
+                    rule["limit_enabled"] = bool(enabled_widget.isChecked()) if isinstance(enabled_widget, QCheckBox) else False
+                    rule["limit_chars"] = int(chars_widget.value()) if isinstance(chars_widget, QSpinBox) else 5000
+                    rule["limit_position"] = (
+                        str(position_widget.currentData() or "end")
+                        if isinstance(position_widget, QComboBox)
+                        else "end"
+                    )
+                elif field_type == "bool":
                     self.set_rule_bool(rule, key, bool(widget.isChecked()))  # type: ignore[attr-defined]
                 elif field_type == "list":
                     text = widget.text()  # type: ignore[attr-defined]

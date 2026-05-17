@@ -183,7 +183,10 @@
         "beginning": "### Character Briefing (CURRENT DATA) ###",
         "end": "**Description:**",
         "include_beginning_marker": false,
-        "include_end_marker": false
+        "include_end_marker": false,
+        "limit_enabled": false,
+        "limit_chars": 5000,
+        "limit_position": "end"
       },
       {
         "name": "### Conversation History ###",
@@ -193,7 +196,10 @@
         "beginning": "### Conversation History ###",
         "end": "Last Interaction:",
         "include_beginning_marker": false,
-        "include_end_marker": false
+        "include_end_marker": false,
+        "limit_enabled": false,
+        "limit_chars": 5000,
+        "limit_position": "end"
       }
     ]
   },

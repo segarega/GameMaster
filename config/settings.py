@@ -107,6 +107,9 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
             "end": "**Description:**",
             "include_beginning_marker": False,
             "include_end_marker": False,
+            "limit_enabled": False,
+            "limit_chars": 5000,
+            "limit_position": "end",
         },
         {
             "name": "### Conversation History ###",
@@ -115,6 +118,9 @@ def default_selector_context_rules() -> List[Dict[str, Any]]:
             "end": "Last Interaction:",
             "include_beginning_marker": False,
             "include_end_marker": False,
+            "limit_enabled": False,
+            "limit_chars": 5000,
+            "limit_position": "end",
         },
     ]
 

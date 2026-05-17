@@ -532,8 +532,11 @@ The Selector needs high-signal information, such as:
 | **Context end marker** | End of the section to extract. |
 | **Include beginning marker** | Keep the start marker in the extracted text. |
 | **Include end marker** | Keep the end marker in the extracted text. |
+| **Limit output** | Optional selector-only character budget for this extract. When enabled, preserve only N characters from the beginning, end, or both beginning and end. |
 
 Default Context Rules are provided for **Character Briefing** and **Conversation History**.
+
+When a Context Rule limit is enabled, GameMaster adds `...` where text was omitted. For example, preserving the end of Conversation History sends the rule name/header unchanged, then `...` followed by the last N characters of that extracted history. This only changes the Selector request context; it does not trim the main LLM prompt.
 
 ---
 
